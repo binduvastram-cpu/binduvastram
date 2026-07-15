@@ -1,0 +1,15 @@
+<svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="600" fill="#F5E9D8"/>
+  <rect x="0.5" y="0.5" width="599" height="599" fill="none" stroke="#E3D2B8" stroke-width="1"/>
+  <g transform="translate(300,260)" fill="none" stroke="#7A1F2B" stroke-width="1.5" opacity="0.55">
+    <path d="M-42,-10 L-42,34 C-42,50 -20,58 0,58 C20,58 42,50 42,34 L42,-10" />
+    <path d="M-42,-10 C-42,-30 -22,-46 0,-46 C22,-46 42,-30 42,-10" />
+    <path d="M-18,-46 C-18,-56 -8,-64 0,-64 C8,-64 18,-56 18,-46" />
+  </g>
+  <text x="300" y="345" font-family="Georgia, 'Playfair Display', serif" font-size="20" fill="#6E5A4A" text-anchor="middle">
+    Bindu Vastram
+  </text>
+  <text x="300" y="370" font-family="Arial, sans-serif" font-size="13" letter-spacing="1" fill="#6E5A4A" text-anchor="middle">
+    PHOTO COMING SOON
+  </text>
+</svg>

@@ -1,0 +1,179 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Bindu Vastram — Premium Sarees Theme */
+:root {
+  /* Brand Colors: Ivory, Warm Sand, Deep Maroon, Gold/Mustard, Emerald, Maroon-Black */
+  --background: #FBF3E7; /* Ivory */
+  --foreground: #2B1414; /* Deep Maroon-Black */
+  --card: #F5E9D8; /* Warm Sand */
+  --card-foreground: #2B1414;
+  --popover: #FBF3E7;
+  --popover-foreground: #2B1414;
+  --primary: #7A1F2B; /* Deep Maroon */
+  --primary-foreground: #FBF3E7;
+  --secondary: #C9A227; /* Gold / Mustard */
+  --secondary-foreground: #2B1414;
+  --muted: #F0E4D3;
+  --muted-foreground: #6E5A4A;
+  --accent: #0F5C4C; /* Emerald */
+  --accent-foreground: #FBF3E7;
+  --destructive: #A63D3D;
+  --destructive-foreground: #FBF3E7;
+  --border: #E3D2B8;
+  --input: #F0E4D3;
+  --ring: #7A1F2B;
+  --chart-1: #7A1F2B;
+  --chart-2: #C9A227;
+  --chart-3: #0F5C4C;
+  --chart-4: #B5652E;
+  --chart-5: #6E5A4A;
+  --radius: 1rem;
+  --sidebar: #F5E9D8;
+  --sidebar-foreground: #2B1414;
+  --sidebar-primary: #7A1F2B;
+  --sidebar-primary-foreground: #FBF3E7;
+  --sidebar-accent: #C9A227;
+  --sidebar-accent-foreground: #2B1414;
+  --sidebar-border: #E3D2B8;
+  --sidebar-ring: #7A1F2B;
+}
+
+.dark {
+  --background: #1E1010;
+  --foreground: #FBF3E7;
+  --card: #2E1818;
+  --card-foreground: #FBF3E7;
+  --popover: #1E1010;
+  --popover-foreground: #FBF3E7;
+  --primary: #C9414F;
+  --primary-foreground: #1E1010;
+  --secondary: #E0BA4A;
+  --secondary-foreground: #1E1010;
+  --muted: #2E1818;
+  --muted-foreground: #C9A88F;
+  --accent: #1E9A80;
+  --accent-foreground: #1E1010;
+  --destructive: #C9414F;
+  --destructive-foreground: #FBF3E7;
+  --border: #3D2424;
+  --input: #2E1818;
+  --ring: #C9414F;
+  --chart-1: #C9414F;
+  --chart-2: #E0BA4A;
+  --chart-3: #1E9A80;
+  --chart-4: #D98A4F;
+  --chart-5: #C9A88F;
+  --sidebar: #2E1818;
+  --sidebar-foreground: #FBF3E7;
+  --sidebar-primary: #C9414F;
+  --sidebar-primary-foreground: #1E1010;
+  --sidebar-accent: #E0BA4A;
+  --sidebar-accent-foreground: #1E1010;
+  --sidebar-border: #3D2424;
+  --sidebar-ring: #C9414F;
+}
+
+@theme inline {
+  --font-sans: 'DM Sans', 'DM Sans Fallback', sans-serif;
+  --font-serif: 'Playfair Display', 'Playfair Display Fallback', serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 8px);
+  --radius-2xl: calc(var(--radius) + 16px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+}
+
+/* Custom soft shadow utility */
+.boty-shadow {
+  box-shadow: rgba(14, 63, 126, 0.04) 0px 0px 0px 1px, rgba(42, 51, 69, 0.04) 0px 1px 1px -0.5px, rgba(42, 51, 70, 0.04) 0px 3px 3px -1.5px, rgba(42, 51, 70, 0.04) 0px 6px 6px -3px, rgba(14, 63, 126, 0.04) 0px 12px 12px -6px, rgba(14, 63, 126, 0.04) 0px 24px 24px -12px;
+}
+
+/* Smooth transitions */
+.boty-transition {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Blur in animation */
+@keyframes blur-in {
+  0% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.animate-blur-in {
+  animation: blur-in 0.8s ease-out;
+}
+
+/* Scale fade in animation */
+@keyframes scale-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-fade-in {
+  animation: scale-fade-in 0.6s ease-out;
+}
