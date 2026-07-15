@@ -69,6 +69,7 @@ export function Header() {
             className="lg:hidden p-2 text-foreground/80 hover:text-foreground boty-transition"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
+            suppressHydrationWarning
           >
             {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -200,7 +201,7 @@ export function Header() {
           <div className="flex items-center justify-between p-6 pb-4">
             <Image src="/logo.png" alt="Bindu Vastram" width={36} height={36} className="rounded-full w-9 h-9" />
             <DrawerClose asChild>
-              <button type="button" className="p-2 text-foreground/70" aria-label="Close menu">
+              <button type="button" className="p-2 text-foreground/70" aria-label="Close menu" suppressHydrationWarning>
                 <X className="w-5 h-5" />
               </button>
             </DrawerClose>
@@ -222,6 +223,7 @@ export function Header() {
               type="button"
               onClick={() => setIsShopExpanded((open) => !open)}
               className="flex items-center justify-between py-3 text-base text-foreground/80 hover:text-foreground boty-transition"
+              suppressHydrationWarning
             >
               <span className="flex items-center gap-3">
                 <ShoppingBag className="w-4 h-4" />

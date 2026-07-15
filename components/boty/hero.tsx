@@ -17,11 +17,24 @@ const HERO_IMAGES = [
 ]
 
 const SLIDE_DURATION = 5000
+const MOBILE_BREAKPOINT = 768
+const MOBILE_VIDEO_MAX_SECONDS = 7
 
 export function Hero() {
+  // Starts unknown (not "desktop") so we never render the image carousel on a
+  // phone for one frame and then swap to video — we just show nothing until
+  // we actually know, which is a much less jarring flash than a media swap.
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
   const [activeSlide, setActiveSlide] = useState(0)
   const [dialogueVisible, setDialogueVisible] = useState(false)
   const [showLeftText, setShowLeftText] = useState(false)
+
+  useEffect(() => {
+    const checkViewport = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    checkViewport()
+    window.addEventListener("resize", checkViewport)
+    return () => window.removeEventListener("resize", checkViewport)
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -55,32 +68,53 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Background Carousel */}
-      <div className="absolute inset-0">
-        {HERO_IMAGES.map((image, index) => (
-          <Image
-            key={image.src}
-            src={image.src}
-            alt="Bindu Vastram premium sarees"
-            fill
-            sizes="100vw"
-            priority={index === 0}
-            style={{ objectPosition: image.position }}
-            className={`object-cover transition-opacity duration-1000 ease-in-out ${
-              index === activeSlide ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        ))}
-        <div
-          className={`absolute inset-0 bg-gradient-to-r from-background from-0% via-background/35 via-35% to-transparent to-65% transition-opacity duration-700 ease-in-out ${
-            showLeftText ? "opacity-100" : "opacity-0"
-          }`}
-        />
-        <div
-          className={`absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-background/70 to-transparent transition-opacity duration-700 ease-in-out ${
-            showLeftText ? "opacity-100" : "opacity-0"
-          }`}
-        />
+      {/* Background — a looping video on mobile (no scrim — see below), the image carousel + soft gradient everywhere else */}
+      <div className="absolute inset-0 bg-background">
+        {isMobile === true && (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            onTimeUpdate={(e) => {
+              // The source clip is 10s but we only want the first 7s on loop.
+              if (e.currentTarget.currentTime >= MOBILE_VIDEO_MAX_SECONDS) {
+                e.currentTarget.currentTime = 0
+              }
+            }}
+            className="absolute inset-0 w-full h-full object-cover"
+          >
+            <source src="/videos/hero-mobile.mp4" type="video/mp4" />
+          </video>
+        )}
+        {isMobile === false && (
+          <>
+            {HERO_IMAGES.map((image, index) => (
+              <Image
+                key={image.src}
+                src={image.src}
+                alt="Bindu Vastram premium sarees"
+                fill
+                sizes="100vw"
+                priority={index === 0}
+                style={{ objectPosition: image.position }}
+                className={`object-cover transition-opacity duration-1000 ease-in-out ${
+                  index === activeSlide ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            ))}
+            <div
+              className={`absolute inset-0 bg-gradient-to-r from-background from-0% via-background/35 via-35% to-transparent to-65% transition-opacity duration-700 ease-in-out ${
+                showLeftText ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            <div
+              className={`absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-background/70 to-transparent transition-opacity duration-700 ease-in-out ${
+                showLeftText ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          </>
+        )}
       </div>
 
       {/* Center Dialogue — quick rise-and-fade reveal, positioned above face-height, gone before the left content appears */}
@@ -117,10 +151,16 @@ export function Hero() {
               showLeftText ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
             }`}
           >
-            <span className="text-sm uppercase mb-5 block text-foreground tracking-[0.2em]">
+            <span
+              className="text-sm uppercase mb-5 block tracking-[0.2em] text-white md:text-foreground"
+              style={isMobile ? { textShadow: "0 2px 16px rgba(0,0,0,0.45)" } : undefined}
+            >
               Premium Sarees
             </span>
-            <h2 className="font-serif text-5xl md:text-6xl lg:text-7xl leading-[1.05] mb-6 text-balance text-foreground font-semibold">
+            <h2
+              className="font-serif text-5xl md:text-6xl lg:text-7xl leading-[1.05] mb-6 text-balance font-semibold text-white md:text-foreground"
+              style={isMobile ? { textShadow: "0 4px 20px rgba(0,0,0,0.45)" } : undefined}
+            >
               Elegance in Every Drape
             </h2>
             <Link
