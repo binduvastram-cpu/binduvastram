@@ -13,6 +13,7 @@ const footerLinks = {
     { name: "Our Story", href: "/about" },
     { name: "Size Guide", href: "/size-guide" },
     { name: "Return & Refund Policy", href: "/returns" },
+    { name: "Virtual Shopping", href: "/virtual-shopping" },
   ],
   support: [
     { name: "WhatsApp Us", href: "https://wa.me/917795092349" },

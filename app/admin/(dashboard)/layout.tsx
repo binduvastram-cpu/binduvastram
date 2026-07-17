@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Package, Users, ShoppingBag, LogOut, Menu, X } from "lucide-react"
+import { LayoutDashboard, Package, Users, ShoppingBag, LogOut, Menu, X, Star, Mail, Video } from "lucide-react"
 import { ADMIN_SESSION_KEY } from "@/lib/admin-auth"
 
 const navItems = [
@@ -12,6 +12,9 @@ const navItems = [
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
+  { href: "/admin/leads", label: "Leads & Coupons", icon: Mail },
+  { href: "/admin/virtual-shopping", label: "Virtual Shopping", icon: Video },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

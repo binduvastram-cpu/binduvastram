@@ -4,7 +4,7 @@ import { useState, useEffect, type FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Menu, X, ShoppingBag, Search, User, Heart, ChevronDown, Home, Info } from "lucide-react"
+import { Menu, X, ShoppingBag, Search, User, Heart, ChevronRight, Home, Info, Video } from "lucide-react"
 import { CartDrawer } from "./cart-drawer"
 import { useCart } from "./cart-context"
 import { categories } from "@/lib/products"
@@ -21,7 +21,6 @@ import { Drawer, DrawerContent, DrawerClose, DrawerTitle, DrawerDescription } fr
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isShopExpanded, setIsShopExpanded] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const { setIsOpen, itemCount } = useCart()
@@ -118,6 +117,12 @@ export function Header() {
               </NavigationMenuList>
             </NavigationMenu>
             <Link
+              href="/virtual-shopping"
+              className="px-4 py-2 text-sm tracking-wide text-foreground/70 hover:text-foreground boty-transition"
+            >
+              Virtual Shopping
+            </Link>
+            <Link
               href="/about"
               className="px-4 py-2 text-sm tracking-wide text-foreground/70 hover:text-foreground boty-transition"
             >
@@ -207,79 +212,62 @@ export function Header() {
             </DrawerClose>
           </div>
 
-          <div className="flex flex-col px-6 pb-8 gap-1 overflow-y-auto">
+          <div className="flex flex-col px-6 pb-8 overflow-y-auto">
+            {/* Categories lead the menu — primary, tappable, one tap from real products */}
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1 mt-2">
+              Shop by Category
+            </p>
+            {categories.map((category) => (
+              <DrawerClose asChild key={category.value}>
+                <Link
+                  href={`/shop?category=${category.value}`}
+                  className="flex items-center justify-between py-3.5 font-serif text-lg text-foreground border-b border-border/30 boty-transition"
+                >
+                  {category.label}
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </Link>
+              </DrawerClose>
+            ))}
             <DrawerClose asChild>
-              <Link
-                href="/"
-                className="flex items-center gap-3 py-3 text-base text-foreground/80 hover:text-foreground boty-transition"
-              >
-                <Home className="w-4 h-4" />
-                Home
+              <Link href="/shop" className="py-3.5 text-sm font-medium text-primary">
+                Shop All Products
               </Link>
             </DrawerClose>
 
-            {/* Shop — collapsed accordion instead of listing every category flat */}
-            <button
-              type="button"
-              onClick={() => setIsShopExpanded((open) => !open)}
-              className="flex items-center justify-between py-3 text-base text-foreground/80 hover:text-foreground boty-transition"
-              suppressHydrationWarning
-            >
-              <span className="flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4" />
-                Shop
-              </span>
-              <ChevronDown className={`w-4 h-4 boty-transition ${isShopExpanded ? "rotate-180" : ""}`} />
-            </button>
-            <div
-              className={`overflow-hidden boty-transition ${isShopExpanded ? "max-h-96" : "max-h-0"}`}
-            >
-              <div className="flex flex-col gap-1 pl-7 pb-2">
-                {categories.map((category) => (
-                  <DrawerClose asChild key={category.value}>
-                    <Link
-                      href={`/shop?category=${category.value}`}
-                      className="py-2 text-sm text-foreground/70 hover:text-foreground boty-transition"
-                    >
-                      {category.label}
-                    </Link>
-                  </DrawerClose>
-                ))}
-                <DrawerClose asChild>
-                  <Link href="/shop" className="py-2 text-sm font-medium text-primary">
-                    Shop All
-                  </Link>
-                </DrawerClose>
-              </div>
+            {/* Secondary utility links — smaller visual weight, grouped at the bottom */}
+            <div className="mt-6 pt-6 border-t border-border/50 flex flex-col gap-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">More</p>
+              <DrawerClose asChild>
+                <Link href="/" className="flex items-center gap-3 py-2.5 text-sm text-foreground/70 hover:text-foreground boty-transition">
+                  <Home className="w-4 h-4" />
+                  Home
+                </Link>
+              </DrawerClose>
+              <DrawerClose asChild>
+                <Link href="/about" className="flex items-center gap-3 py-2.5 text-sm text-foreground/70 hover:text-foreground boty-transition">
+                  <Info className="w-4 h-4" />
+                  About
+                </Link>
+              </DrawerClose>
+              <DrawerClose asChild>
+                <Link href="/virtual-shopping" className="flex items-center gap-3 py-2.5 text-sm text-foreground/70 hover:text-foreground boty-transition">
+                  <Video className="w-4 h-4" />
+                  Virtual Shopping
+                </Link>
+              </DrawerClose>
+              <DrawerClose asChild>
+                <Link href="/wishlist" className="flex items-center gap-3 py-2.5 text-sm text-foreground/70 hover:text-foreground boty-transition">
+                  <Heart className="w-4 h-4" />
+                  Wishlist
+                </Link>
+              </DrawerClose>
+              <DrawerClose asChild>
+                <Link href="/account" className="flex items-center gap-3 py-2.5 text-sm text-foreground/70 hover:text-foreground boty-transition">
+                  <User className="w-4 h-4" />
+                  Account
+                </Link>
+              </DrawerClose>
             </div>
-
-            <DrawerClose asChild>
-              <Link
-                href="/about"
-                className="flex items-center gap-3 py-3 text-base text-foreground/80 hover:text-foreground boty-transition"
-              >
-                <Info className="w-4 h-4" />
-                About
-              </Link>
-            </DrawerClose>
-            <DrawerClose asChild>
-              <Link
-                href="/wishlist"
-                className="flex items-center gap-3 py-3 text-base text-foreground/80 hover:text-foreground boty-transition"
-              >
-                <Heart className="w-4 h-4" />
-                Wishlist
-              </Link>
-            </DrawerClose>
-            <DrawerClose asChild>
-              <Link
-                href="/account"
-                className="flex items-center gap-3 py-3 text-base text-foreground/80 hover:text-foreground boty-transition"
-              >
-                <User className="w-4 h-4" />
-                Account
-              </Link>
-            </DrawerClose>
           </div>
         </DrawerContent>
       </Drawer>

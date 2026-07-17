@@ -7,6 +7,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { useOrders } from "@/components/boty/orders-store"
 import { useProducts } from "@/components/boty/products-store"
 import { categories } from "@/lib/products"
+import { formatPrice } from "@/lib/format"
 
 function StatTile({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
   return (
@@ -85,7 +86,7 @@ export default function AdminOverviewPage() {
       <p className="text-muted-foreground mb-8">Revenue and activity from real local orders on this device.</p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatTile icon={IndianRupee} label="Total Revenue" value={`₹${revenue.toLocaleString("en-IN")}`} />
+        <StatTile icon={IndianRupee} label="Total Revenue" value={formatPrice(revenue)} />
         <StatTile icon={ShoppingBag} label="Orders" value={String(orders.length)} />
         <StatTile icon={AlertTriangle} label="Low Stock Items" value={String(lowStockProducts.length)} />
         <StatTile icon={TrendingUp} label="Active Products" value={String(products.filter((p) => p.isActive !== false).length)} />
@@ -100,7 +101,7 @@ export default function AdminOverviewPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
+                <Tooltip formatter={(value: number) => formatPrice(value)} />
                 <Line type="monotone" dataKey="revenue" stroke="var(--primary)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -115,7 +116,7 @@ export default function AdminOverviewPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="category" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value: number) => `₹${value.toLocaleString("en-IN")}`} />
+                <Tooltip formatter={(value: number) => formatPrice(value)} />
                 <Bar dataKey="revenue" fill="var(--secondary)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Italiana } from "next/font/google"
@@ -10,7 +10,6 @@ import { DIALOGUE_VISIBLE_UNTIL, LEFT_TEXT_START, HERO_INTRO_SEEN_KEY } from "@/
 const italiana = Italiana({ subsets: ["latin"], weight: "400" })
 
 const HERO_IMAGES = [
-  { src: "/images/herosec1.png", position: "center 20%" },
   { src: "/images/herosec2.png", position: "78% 12%" },
   { src: "/images/herosec4.png", position: "60% 18%" },
   { src: "/images/saree-studio-blue.jpg", position: "center 12%" },
@@ -28,6 +27,7 @@ export function Hero() {
   const [activeSlide, setActiveSlide] = useState(0)
   const [dialogueVisible, setDialogueVisible] = useState(false)
   const [showLeftText, setShowLeftText] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     const checkViewport = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
@@ -35,6 +35,20 @@ export function Hero() {
     window.addEventListener("resize", checkViewport)
     return () => window.removeEventListener("resize", checkViewport)
   }, [])
+
+  useEffect(() => {
+    // iOS Safari sometimes ignores the `autoPlay` attribute on mount (and
+    // shows its native center play/pause glyph while paused) — explicitly
+    // calling .play() on a muted, inline video reliably starts it.
+    if (isMobile !== true) return
+    const video = videoRef.current
+    if (!video) return
+    video.muted = true
+    video.play().catch(() => {
+      // Autoplay can still be blocked (e.g. iOS Low Power Mode) — a tap on
+      // the video will trigger the browser's own retry in that case.
+    })
+  }, [isMobile])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,17 +86,23 @@ export function Hero() {
       <div className="absolute inset-0 bg-background">
         {isMobile === true && (
           <video
+            ref={videoRef}
             autoPlay
             muted
             loop
             playsInline
+            webkit-playsinline="true"
+            disablePictureInPicture
+            disableRemotePlayback
+            controls={false}
+            controlsList="nodownload nofullscreen noremoteplayback noplaybackrate"
             onTimeUpdate={(e) => {
               // The source clip is 10s but we only want the first 7s on loop.
               if (e.currentTarget.currentTime >= MOBILE_VIDEO_MAX_SECONDS) {
                 e.currentTarget.currentTime = 0
               }
             }}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           >
             <source src="/videos/hero-mobile.mp4" type="video/mp4" />
           </video>
@@ -104,7 +124,7 @@ export function Hero() {
               />
             ))}
             <div
-              className={`absolute inset-0 bg-gradient-to-r from-background from-0% via-background/35 via-35% to-transparent to-65% transition-opacity duration-700 ease-in-out ${
+              className={`absolute inset-0 bg-gradient-to-r from-background from-0% via-background/25 via-25% to-transparent to-50% transition-opacity duration-700 ease-in-out ${
                 showLeftText ? "opacity-100" : "opacity-0"
               }`}
             />
@@ -151,6 +171,12 @@ export function Hero() {
               showLeftText ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
             }`}
           >
+            <p
+              className="font-serif text-xl sm:text-2xl mb-2 text-white md:text-foreground"
+              style={isMobile ? { textShadow: "0 2px 16px rgba(0,0,0,0.45)" } : undefined}
+            >
+              Bindu Vastram
+            </p>
             <span
               className="text-sm uppercase mb-5 block tracking-[0.2em] text-white md:text-foreground"
               style={isMobile ? { textShadow: "0 2px 16px rgba(0,0,0,0.45)" } : undefined}

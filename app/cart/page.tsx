@@ -11,6 +11,7 @@ import { useAccount } from "@/components/boty/account-context"
 import { useOrders } from "@/components/boty/orders-store"
 import { AccountDetailsForm } from "@/components/boty/account-form"
 import type { Order } from "@/lib/types"
+import { formatPrice } from "@/lib/format"
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
@@ -56,8 +57,10 @@ export default function CartPage() {
     setConfirmedOrder(order)
   }
 
+  const hasCompleteAddress = Boolean(profile?.address && profile?.pincode)
+
   const handleProceedToBuy = () => {
-    if (profile && isLoggedIn) {
+    if (profile && isLoggedIn && hasCompleteAddress) {
       createOrderForProfile(profile)
     } else {
       setShowAddressForm(true)
@@ -65,7 +68,7 @@ export default function CartPage() {
   }
 
   const whatsappMessage = confirmedOrder
-    ? `Hi Bindu Vastram, I've placed order #${confirmedOrder.id.slice(-6).toUpperCase()} for ₹${confirmedOrder.total.toLocaleString("en-IN")} (COD). Please confirm.`
+    ? `Hi Bindu Vastram, I've placed order #${confirmedOrder.id.slice(-6).toUpperCase()} for ${formatPrice(confirmedOrder.total)} (COD). Please confirm.`
     : ""
 
   if (confirmedOrder) {
@@ -80,7 +83,7 @@ export default function CartPage() {
               </div>
               <h1 className="font-serif text-3xl text-foreground mb-2">Order Placed!</h1>
               <p className="text-muted-foreground mb-1">
-                Order #{confirmedOrder.id.slice(-6).toUpperCase()} • ₹{confirmedOrder.total.toLocaleString("en-IN")} (Cash on Delivery)
+                Order #{confirmedOrder.id.slice(-6).toUpperCase()} • {formatPrice(confirmedOrder.total)} (Cash on Delivery)
               </p>
               <p className="text-sm text-muted-foreground mb-8">
                 We'll prepare your order for dispatch. You can track its status anytime from your account.
@@ -128,7 +131,8 @@ export default function CartPage() {
                 We just need this once — save it to place future orders in one tap.
               </p>
               <AccountDetailsForm
-                submitLabel={`Place Order (COD) • ₹${total.toLocaleString("en-IN")}`}
+                initial={{ name: profile?.name, phone: profile?.phone }}
+                submitLabel={`Place Order (COD) • ${formatPrice(total)}`}
                 onSubmit={(details) => {
                   createAccount(details)
                   createOrderForProfile(details)
@@ -168,7 +172,7 @@ export default function CartPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-serif text-sm text-foreground mb-0.5 font-semibold truncate">{item.name}</h3>
                           <p className="text-muted-foreground text-xs mb-1 truncate">{item.description}</p>
-                          <p className="font-medium text-foreground text-sm">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
+                          <p className="font-medium text-foreground text-sm">{formatPrice((item.price * item.quantity))}</p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
@@ -213,7 +217,7 @@ export default function CartPage() {
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="font-medium text-foreground">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
+                        <p className="font-medium text-foreground">{formatPrice((item.price * item.quantity))}</p>
                       </div>
                     </div>
                   </div>
@@ -246,7 +250,7 @@ export default function CartPage() {
                 <div className="space-y-2 text-sm border-t border-border/50 pt-4">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Subtotal</span>
-                    <span>₹{subtotal.toLocaleString("en-IN")}</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Shipping</span>
@@ -254,7 +258,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between text-base font-medium text-foreground pt-2 border-t border-border/50">
                     <span>Total</span>
-                    <span>₹{total.toLocaleString("en-IN")}</span>
+                    <span>{formatPrice(total)}</span>
                   </div>
                 </div>
 

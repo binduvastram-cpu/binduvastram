@@ -14,6 +14,7 @@ import { useProducts } from "@/components/boty/products-store"
 import { categories } from "@/lib/products"
 import { IMAGE_LIBRARY } from "@/lib/image-library"
 import type { Product, Category } from "@/lib/types"
+import { formatPrice } from "@/lib/format"
 
 function emptyProduct(): Product {
   return {
@@ -111,7 +112,7 @@ export default function AdminProductsPage() {
                   </div>
                 </td>
                 <td className="px-5 py-3 text-muted-foreground capitalize">{product.category.replace("-", " ")}</td>
-                <td className="px-5 py-3 text-foreground">₹{product.price.toLocaleString("en-IN")}</td>
+                <td className="px-5 py-3 text-foreground">{formatPrice(product.price)}</td>
                 <td className="px-5 py-3 text-foreground">{product.stock}</td>
                 <td className="px-5 py-3">
                   <span className={`text-xs px-2.5 py-1 rounded-full ${product.isActive !== false ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
@@ -144,7 +145,7 @@ export default function AdminProductsPage() {
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground truncate">{product.name}</p>
               <p className="text-xs text-muted-foreground capitalize mb-1">{product.category.replace("-", " ")}</p>
-              <p className="text-sm text-foreground">₹{product.price.toLocaleString("en-IN")} • Stock: {product.stock}</p>
+              <p className="text-sm text-foreground">{formatPrice(product.price)} • Stock: {product.stock}</p>
             </div>
             <div className="flex flex-col items-end justify-between">
               <span className={`text-xs px-2 py-0.5 rounded-full ${product.isActive !== false ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
@@ -346,9 +347,96 @@ function ProductForm({
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
           />
         </div>
+        <div>
+          <label className="text-sm font-medium text-foreground mb-2 block">Material (bags)</label>
+          <input
+            value={form.properties.material ?? ""}
+            onChange={(e) => setForm({ ...form, properties: { ...form.properties, material: e.target.value } })}
+            className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+          />
+        </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      {/* Sizes + per-size stock */}
+      <div>
+        <label className="text-sm font-medium text-foreground mb-2 block">Sizes (comma-separated, leave blank if not applicable)</label>
+        <input
+          value={(form.sizes ?? []).join(", ")}
+          onChange={(e) => {
+            const sizes = e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+            setForm({ ...form, sizes: sizes.length > 0 ? sizes : undefined })
+          }}
+          placeholder="S, M, L, XL"
+          className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+        />
+        {form.sizes && form.sizes.length > 0 && (
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
+            {form.sizes.map((size) => (
+              <div key={size}>
+                <label className="text-xs text-muted-foreground mb-1 block">{size} stock</label>
+                <input
+                  type="number"
+                  value={form.sizeStock?.[size] ?? 0}
+                  onChange={(e) =>
+                    setForm({ ...form, sizeStock: { ...form.sizeStock, [size]: Number(e.target.value) } })
+                  }
+                  className="w-full bg-background border border-border/50 rounded-full px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Social proof (Section 5) */}
+      <div className="border-t border-border/50 pt-5">
+        <p className="text-sm font-medium text-foreground mb-3">Social Proof</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Display Mode</label>
+            <select
+              value={form.socialProofMode ?? "manual"}
+              onChange={(e) => setForm({ ...form, socialProofMode: e.target.value as "manual" | "real" })}
+              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            >
+              <option value="manual">Manual (admin-set number)</option>
+              <option value="real">Real (from actual orders)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Bought Count (manual)</label>
+            <input
+              type="number"
+              value={form.boughtCount ?? ""}
+              onChange={(e) => setForm({ ...form, boughtCount: e.target.value ? Number(e.target.value) : undefined })}
+              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Like Count Base</label>
+            <input
+              type="number"
+              value={form.likeCountBase ?? ""}
+              onChange={(e) => setForm({ ...form, likeCountBase: e.target.value ? Number(e.target.value) : undefined })}
+              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Sample Locations (comma-separated)</label>
+            <input
+              value={(form.sampleLocations ?? []).join(", ")}
+              onChange={(e) => {
+                const locations = e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+                setForm({ ...form, sampleLocations: locations.length > 0 ? locations : undefined })
+              }}
+              placeholder="Bangalore, Chennai"
+              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6 flex-wrap">
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
@@ -364,6 +452,15 @@ function ProductForm({
             onChange={(e) => setForm({ ...form, codAvailable: e.target.checked })}
           />
           COD Available
+        </label>
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <span>New Arrival Until</span>
+          <input
+            type="date"
+            value={form.newArrivalUntil?.slice(0, 10) ?? ""}
+            onChange={(e) => setForm({ ...form, newArrivalUntil: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+            className="bg-background border border-border/50 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+          />
         </label>
       </div>
 

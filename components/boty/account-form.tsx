@@ -51,11 +51,13 @@ const emptyForm: AccountProfile = { name: "", phone: "", address: "", pincode: "
 export function AccountDetailsForm({
   onSubmit,
   submitLabel = "Create Account",
+  initial,
 }: {
   onSubmit: (profile: AccountProfile) => void
   submitLabel?: string
+  initial?: Partial<AccountProfile>
 }) {
-  const [form, setForm] = useState<AccountProfile>(emptyForm)
+  const [form, setForm] = useState<AccountProfile>({ ...emptyForm, ...initial })
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()

@@ -1,15 +1,21 @@
 "use client"
 
-import { useState, useEffect, type ReactNode } from "react"
-import Image from "next/image"
+import { useState, useEffect, type ReactNode, type FormEvent } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, Minus, Plus, ChevronDown, Heart, Star, Check, Truck, PackageCheck } from "lucide-react"
+import { ChevronLeft, Minus, Plus, ChevronDown, Heart, Star, Check, Truck, PackageCheck, ShieldCheck, RotateCcw } from "lucide-react"
 import { Header } from "@/components/boty/header"
 import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
+import { useReviews } from "@/components/boty/reviews-store"
+import { useAccount } from "@/components/boty/account-context"
+import { ProductGallery } from "@/components/boty/product-gallery"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { sizeChartForCategory } from "@/lib/size-charts"
+import { formatPrice } from "@/lib/format"
+import { getGuestId } from "@/lib/guest-id"
 
 type AccordionSection = "details" | "fabricCare" | "delivery"
 
@@ -22,23 +28,52 @@ export default function ProductPage() {
 
   const { addItem } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
+  const { reviews, addReview } = useReviews()
+  const { profile, isLoggedIn } = useAccount()
 
-  const [selectedSize, setSelectedSize] = useState(product.sizes?.[0])
+  // No size is pre-selected — Section 9a requires an active choice before
+  // Add to Cart, not a silently-defaulted one.
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(undefined)
+  const [sizeError, setSizeError] = useState(false)
+  const [showSizeChart, setShowSizeChart] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [openAccordion, setOpenAccordion] = useState<AccordionSection | null>("details")
   const [isAdded, setIsAdded] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewText, setReviewText] = useState("")
+  const [guestName, setGuestName] = useState("")
+  const [reviewSubmitted, setReviewSubmitted] = useState(false)
+
+  const productReviews = reviews.filter((r) => r.productId === product.id && r.status === "approved")
+  const averageRating = productReviews.length > 0
+    ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length
+    : null
+  const likeCount = (product.likeCountBase ?? 0) + (isWishlisted(product.id) ? 1 : 0)
+  const sizeChart = sizeChartForCategory(product.category)
 
   useEffect(() => {
     window.scrollTo(0, 0)
-    setSelectedSize(product.sizes?.[0])
+    setSelectedSize(undefined)
+    setSizeError(false)
     setQuantity(1)
+    setReviewSubmitted(false)
+    setReviewText("")
   }, [productId])
 
   const toggleAccordion = (section: AccordionSection) => {
     setOpenAccordion(openAccordion === section ? null : section)
   }
 
+  const validateSize = () => {
+    if (product.sizes && !selectedSize) {
+      setSizeError(true)
+      return false
+    }
+    return true
+  }
+
   const handleAddToCart = () => {
+    if (!validateSize()) return
     for (let i = 0; i < quantity; i++) {
       addItem({
         id: product.id,
@@ -53,8 +88,26 @@ export default function ProductPage() {
   }
 
   const handleBuyNow = () => {
+    if (!validateSize()) return
     handleAddToCart()
     router.push("/cart")
+  }
+
+  const handleReviewSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!reviewText.trim()) return
+    const customerName = isLoggedIn && profile
+      ? profile.name
+      : guestName.trim() || `Guest ${getGuestId()}`
+    addReview({
+      productId: product.id,
+      customerName,
+      rating: reviewRating,
+      text: reviewText.trim(),
+    })
+    setReviewSubmitted(true)
+    setReviewText("")
+    setGuestName("")
   }
 
   const propertyEntries = Object.entries(product.properties).filter(([, value]) => value !== undefined)
@@ -66,6 +119,7 @@ export default function ProductPage() {
     occasion: "Occasion",
     color: "Color",
     length: "Length",
+    material: "Material",
   }
 
   const accordionItems: { key: AccordionSection; title: string; content: ReactNode }[] = [
@@ -129,34 +183,8 @@ export default function ProductPage() {
           </Link>
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
-            {/* Product Image Gallery */}
-            <div className="space-y-4">
-              <div className="relative aspect-square rounded-3xl overflow-hidden bg-card boty-shadow">
-                <Image
-                  src={product.images[0] || "/placeholder.svg"}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover"
-                  priority
-                />
-              </div>
-              {product.images.length > 1 && (
-                <div className="grid grid-cols-4 gap-3">
-                  {product.images.map((image, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-card boty-shadow">
-                      <Image
-                        src={image}
-                        alt={`${product.name} ${i + 1}`}
-                        fill
-                        sizes="(max-width: 1024px) 25vw, 12vw"
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Product Image Gallery — swipeable on touch, arrows/thumbnails on desktop */}
+            <ProductGallery images={product.images} alt={product.name} />
 
             {/* Product Info */}
             <div className="flex flex-col">
@@ -185,14 +213,41 @@ export default function ProductPage() {
                 )}
 
                 {/* Rating */}
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                    ))}
+                {averageRating !== null ? (
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${i < Math.round(averageRating) ? "fill-primary text-primary" : "text-muted-foreground/30"}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {averageRating.toFixed(1)} ({productReviews.length} {productReviews.length === 1 ? "review" : "reviews"})
+                    </span>
                   </div>
-                  <span className="text-sm text-muted-foreground">(128 reviews)</span>
-                </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mb-4">No reviews yet — be the first to review this product.</p>
+                )}
+
+                {/* Social proof */}
+                {(product.boughtCount || likeCount > 0) && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-sm text-muted-foreground">
+                    {product.boughtCount && (
+                      <span>
+                        Bought by {product.boughtCount} people
+                        {product.sampleLocations && product.sampleLocations.length > 0 ? `, recently from ${product.sampleLocations[0]}` : ""}
+                      </span>
+                    )}
+                    {likeCount > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <Heart className="w-3.5 h-3.5 fill-primary text-primary" />
+                        {likeCount} liked this
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <p className="text-foreground/80 leading-relaxed">
                   {product.description}
@@ -201,10 +256,10 @@ export default function ProductPage() {
 
               {/* Price */}
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl font-medium text-foreground">₹{product.price.toLocaleString("en-IN")}</span>
+                <span className="text-3xl font-medium text-foreground">{formatPrice(product.price)}</span>
                 {product.mrp && (
                   <span className="text-xl text-muted-foreground line-through">
-                    ₹{product.mrp.toLocaleString("en-IN")}
+                    {formatPrice(product.mrp)}
                   </span>
                 )}
               </div>
@@ -221,28 +276,66 @@ export default function ProductPage() {
                   <Truck className="w-4 h-4 text-primary" />
                   Delivery in {product.estimatedDeliveryDays[0]}–{product.estimatedDeliveryDays[1]} days
                 </span>
+                {product.category === "jewellery" && (
+                  <>
+                    <span className="inline-flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-primary" />
+                      Certified Materials
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <RotateCcw className="w-4 h-4 text-primary" />
+                      Easy Returns
+                    </span>
+                  </>
+                )}
               </div>
 
-              {/* Size Selector */}
+              {/* Size Selector — required before Add to Cart (Section 9a) */}
               {product.sizes && (
                 <div className="mb-6">
-                  <label className="text-sm font-medium text-foreground mb-3 block">Size</label>
-                  <div className="flex flex-wrap gap-3">
-                    {product.sizes.map((size) => (
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-medium text-foreground block">
+                      Size {!selectedSize && <span className="text-muted-foreground font-normal">(required)</span>}
+                    </label>
+                    {sizeChart && (
                       <button
-                        key={size}
                         type="button"
-                        onClick={() => setSelectedSize(size)}
-                        className={`px-6 py-3 rounded-full text-sm boty-transition boty-shadow ${
-                          selectedSize === size
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-card text-foreground hover:bg-card/80"
-                        }`}
+                        onClick={() => setShowSizeChart(true)}
+                        className="text-xs text-primary hover:underline"
                       >
-                        {size}
+                        Size Chart
                       </button>
-                    ))}
+                    )}
                   </div>
+                  <div className="flex flex-wrap gap-3">
+                    {product.sizes.map((size) => {
+                      const stock = product.sizeStock?.[size]
+                      const outOfStock = stock === 0
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          disabled={outOfStock}
+                          onClick={() => {
+                            setSelectedSize(size)
+                            setSizeError(false)
+                          }}
+                          className={`px-6 py-3 rounded-full text-sm boty-transition boty-shadow relative ${
+                            outOfStock
+                              ? "bg-muted text-muted-foreground/50 cursor-not-allowed line-through"
+                              : selectedSize === size
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-card text-foreground hover:bg-card/80"
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {sizeError && (
+                    <p className="text-xs text-destructive mt-2">Please select a size before continuing.</p>
+                  )}
                 </div>
               )}
 
@@ -329,8 +422,117 @@ export default function ProductPage() {
               </div>
             </div>
           </div>
+
+          {/* Reviews */}
+          <div className="mt-16 pt-16 border-t border-border/50 max-w-3xl">
+            <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-6">
+              Reviews {productReviews.length > 0 && `(${productReviews.length})`}
+            </h2>
+
+            {productReviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground mb-8">No reviews yet — be the first to share your experience.</p>
+            ) : (
+              <div className="space-y-6 mb-10">
+                {productReviews.map((review) => (
+                  <div key={review.id} className="border-b border-border/50 pb-6">
+                    <div className="flex items-center gap-2 mb-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-3.5 h-3.5 ${i < review.rating ? "fill-primary text-primary" : "text-muted-foreground/30"}`} />
+                      ))}
+                      <span className="text-sm font-medium text-foreground">{review.customerName}</span>
+                    </div>
+                    <p className="text-sm text-foreground/80 leading-relaxed">{review.text}</p>
+                    {review.reply && (
+                      <div className="mt-3 ml-4 pl-4 border-l-2 border-primary/30">
+                        <p className="text-xs font-medium text-primary mb-1">Bindu Vastram</p>
+                        <p className="text-sm text-muted-foreground">{review.reply}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Submit a review — open to everyone; guests are labeled with a per-device
+                random id since there's no account to attach the review to. Goes to
+                moderation before appearing either way. */}
+            <div className="bg-card rounded-2xl p-6">
+              {reviewSubmitted ? (
+                <p className="text-sm text-foreground">Thanks for your review! It'll appear here once approved.</p>
+              ) : (
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">Your Rating</label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} type="button" onClick={() => setReviewRating(star)} aria-label={`${star} stars`}>
+                          <Star className={`w-6 h-6 ${star <= reviewRating ? "fill-primary text-primary" : "text-muted-foreground/30"}`} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {!isLoggedIn && (
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-2 block">Your Name (optional)</label>
+                      <input
+                        type="text"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        placeholder="Leave blank to post as a guest"
+                        className="w-full bg-background border border-border/50 rounded-full px-4 py-3 text-sm focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">Your Review</label>
+                    <textarea
+                      required
+                      value={reviewText}
+                      onChange={(e) => setReviewText(e.target.value)}
+                      rows={3}
+                      placeholder="Share your experience with this product..."
+                      className="w-full bg-background border border-border/50 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-primary/50 resize-none"
+                    />
+                  </div>
+                  <button type="submit" className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-sm font-medium boty-transition hover:bg-primary/90">
+                    Submit Review
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Size Chart Modal */}
+      {sizeChart && (
+        <Dialog open={showSizeChart} onOpenChange={setShowSizeChart}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Size Chart</DialogTitle>
+              <DialogDescription>Measurements in inches / centimeters</DialogDescription>
+            </DialogHeader>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="py-2 pr-4 text-muted-foreground font-medium">Size</th>
+                  <th className="py-2 pr-4 text-muted-foreground font-medium">Bust/Chest</th>
+                  <th className="py-2 text-muted-foreground font-medium">Waist</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sizeChart.map((row) => (
+                  <tr key={row.size} className="border-b border-border/50">
+                    <td className="py-2 pr-4 font-medium text-foreground">{row.size}</td>
+                    <td className="py-2 pr-4 text-foreground/80">{row.bust}</td>
+                    <td className="py-2 text-foreground/80">{row.waist}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Footer />
 
@@ -340,10 +542,10 @@ export default function ProductPage() {
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex-shrink-0">
-          <p className="text-lg font-medium text-foreground leading-none">₹{product.price.toLocaleString("en-IN")}</p>
+          <p className="text-lg font-medium text-foreground leading-none">{formatPrice(product.price)}</p>
           {product.mrp && (
             <p className="text-xs text-muted-foreground line-through leading-none mt-1">
-              ₹{product.mrp.toLocaleString("en-IN")}
+              {formatPrice(product.mrp)}
             </p>
           )}
         </div>

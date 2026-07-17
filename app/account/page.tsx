@@ -8,6 +8,7 @@ import { Footer } from "@/components/boty/footer"
 import { useAccount, type AccountProfile } from "@/components/boty/account-context"
 import { useOrders } from "@/components/boty/orders-store"
 import { ProfileField, AccountDetailsForm } from "@/components/boty/account-form"
+import { formatPrice } from "@/lib/format"
 
 export default function AccountPage() {
   const { profile, isLoggedIn, hydrated, createAccount, updateProfile, login, logout, deleteAccount } = useAccount()
@@ -179,7 +180,7 @@ function AccountDashboard({
                   {" • "}
                   {order.items.length} {order.items.length === 1 ? "item" : "items"}
                 </p>
-                <p className="text-sm font-medium text-foreground">₹{order.total.toLocaleString("en-IN")} • Cash on Delivery</p>
+                <p className="text-sm font-medium text-foreground">{formatPrice(order.total)} • Cash on Delivery</p>
               </div>
             ))}
           </div>

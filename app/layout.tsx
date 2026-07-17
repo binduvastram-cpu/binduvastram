@@ -8,6 +8,11 @@ import { ProductsProvider } from '@/components/boty/products-store'
 import { OrdersProvider } from '@/components/boty/orders-store'
 import { CustomersProvider } from '@/components/boty/customers-store'
 import { AccountProvider } from '@/components/boty/account-context'
+import { ReviewsProvider } from '@/components/boty/reviews-store'
+import { LeadsProvider } from '@/components/boty/leads-store'
+import { VirtualShoppingProvider } from '@/components/boty/virtual-shopping-store'
+import { WhatsAppButton } from '@/components/boty/whatsapp-button'
+import { DiscountPopup } from '@/components/boty/discount-popup'
 import './globals.css'
 
 const dmSans = DM_Sans({ 
@@ -50,7 +55,15 @@ export default function RootLayout({
               <OrdersProvider>
                 <CustomersProvider>
                   <AccountProvider>
-                    {children}
+                    <ReviewsProvider>
+                      <LeadsProvider>
+                        <VirtualShoppingProvider>
+                          {children}
+                          <WhatsAppButton />
+                          <DiscountPopup />
+                        </VirtualShoppingProvider>
+                      </LeadsProvider>
+                    </ReviewsProvider>
                   </AccountProvider>
                 </CustomersProvider>
               </OrdersProvider>

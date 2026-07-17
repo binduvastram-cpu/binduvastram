@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Search, ShoppingBag } from "lucide-react"
 import { useOrders } from "@/components/boty/orders-store"
 import type { OrderStatus } from "@/lib/types"
+import { formatPrice } from "@/lib/format"
 
 const STATUS_OPTIONS: OrderStatus[] = [
   "Placed",
@@ -61,7 +62,7 @@ export default function AdminOrdersPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-foreground">₹{order.total.toLocaleString("en-IN")}</p>
+                  <p className="font-medium text-foreground">{formatPrice(order.total)}</p>
                   <p className="text-xs text-muted-foreground">COD • {order.paymentStatus}</p>
                 </div>
               </div>

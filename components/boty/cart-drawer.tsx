@@ -13,6 +13,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { useCart } from "./cart-context"
+import { formatPrice } from "@/lib/format"
 
 export function CartDrawer() {
   const { items, removeItem, updateQuantity, isOpen, setIsOpen, itemCount, subtotal } = useCart()
@@ -98,7 +99,7 @@ export function CartDrawer() {
 
                   {/* Price */}
                   <div className="text-right flex-shrink-0">
-                    <p className="font-medium text-foreground">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
+                    <p className="font-medium text-foreground">{formatPrice((item.price * item.quantity))}</p>
                   </div>
                 </div>
               ))}
@@ -112,7 +113,7 @@ export function CartDrawer() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotal</span>
-                <span>₹{subtotal.toLocaleString("en-IN")}</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Shipping</span>
@@ -120,7 +121,7 @@ export function CartDrawer() {
               </div>
               <div className="flex justify-between text-base font-medium text-foreground pt-2 border-t border-border/50">
                 <span>Total</span>
-                <span>₹{total.toLocaleString("en-IN")}</span>
+                <span>{formatPrice(total)}</span>
               </div>
             </div>
 

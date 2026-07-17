@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { ShoppingBag, Heart } from "lucide-react"
 import { useCart } from "./cart-context"
 import { useWishlist } from "./wishlist-context"
 import { useProducts } from "./products-store"
+import { SwipeableCardImage } from "./swipeable-card-image"
 import type { Product } from "@/lib/types"
+import { formatPrice } from "@/lib/format"
 
 type Tab = "new-arrivals" | "best-sellers"
 
@@ -29,7 +30,9 @@ export function ProductGrid() {
 
   const visibleProducts = (
     selectedTab === "new-arrivals"
-      ? activeProducts.filter((product) => product.badge === "New")
+      ? activeProducts.filter(
+          (product) => product.badge === "New" || (product.newArrivalUntil && new Date(product.newArrivalUntil) > new Date())
+        )
       : activeProducts.filter((product) => product.badge === "Bestseller")
   ).slice(0, 8)
 
@@ -88,13 +91,13 @@ export function ProductGrid() {
         {/* Header */}
         <div ref={headerRef} className="text-center mb-16">
           <span className={`text-sm tracking-[0.3em] uppercase text-primary mb-4 block ${headerVisible ? 'animate-blur-in opacity-0' : 'opacity-0'}`} style={headerVisible ? { animationDelay: '0.2s', animationFillMode: 'forwards' } : {}}>
-            Our Collection
+            Fresh This Season
           </span>
           <h2 className={`font-serif leading-tight text-foreground mb-4 text-balance text-4xl md:text-7xl ${headerVisible ? 'animate-blur-in opacity-0' : 'opacity-0'}`} style={headerVisible ? { animationDelay: '0.4s', animationFillMode: 'forwards' } : {}}>
-            Handpicked for you
+            New Arrivals
           </h2>
           <p className={`text-lg text-muted-foreground max-w-md mx-auto ${headerVisible ? 'animate-blur-in opacity-0' : 'opacity-0'}`} style={headerVisible ? { animationDelay: '0.6s', animationFillMode: 'forwards' } : {}}>
-            Premium sarees and ethnic wear, handpicked for timeless elegance
+            The latest additions to our handpicked collection, updated regularly
           </p>
         </div>
 
@@ -129,7 +132,7 @@ export function ProductGrid() {
         {/* Product Grid */}
         <div
           ref={gridRef}
-          className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          className="flex overflow-x-auto gap-3 snap-x snap-mandatory -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 sm:overflow-visible"
         >
           {visibleProducts.map((product, index) => (
             <ProductCard
@@ -177,29 +180,29 @@ function ProductCard({
 }) {
   const { isWishlisted, toggleWishlist } = useWishlist()
   const wishlisted = isWishlisted(product.id)
+  const likeCount = (product.likeCountBase ?? 0) + (wishlisted ? 1 : 0)
 
   return (
     <Link
       href={`/product/${product.id}`}
-      className={`group transition-all duration-500 ease-out ${
+      className={`group w-40 shrink-0 snap-start sm:w-auto sm:shrink transition-all duration-500 ease-out ${
         isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
       }`}
       style={{ transitionDelay: isVisible ? `${index * 80}ms` : '0ms' }}
     >
-      <div className="bg-background rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
+      <div className="bg-background rounded-2xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
         {/* Image */}
         <div className="relative aspect-square bg-muted overflow-hidden">
-          <Image
-            src={product.images[0] || "/placeholder.svg"}
+          <SwipeableCardImage
+            images={product.images}
             alt={product.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            sizes="(max-width: 1024px) 50vw, 25vw"
             className="object-cover boty-transition group-hover:scale-105"
           />
           {/* Badge */}
           {product.badge && (
             <span
-              className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs tracking-wide bg-white text-black ${
+              className={`absolute top-2 left-2 sm:top-4 sm:left-4 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs tracking-wide bg-white text-black ${
                 product.badge === "Sale"
                   ? "bg-destructive/10 text-destructive"
                   : product.badge === "New"
@@ -213,7 +216,7 @@ function ProductCard({
           {/* Wishlist toggle */}
           <button
             type="button"
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 boty-transition boty-shadow"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -221,12 +224,12 @@ function ProductCard({
             }}
             aria-label="Toggle wishlist"
           >
-            <Heart className={`w-4 h-4 ${wishlisted ? "fill-primary text-primary" : "text-foreground"}`} />
+            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${wishlisted ? "fill-primary text-primary" : "text-foreground"}`} />
           </button>
           {/* Quick add button */}
           <button
             type="button"
-            className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 boty-transition boty-shadow"
+            className="hidden sm:flex absolute bottom-4 right-4 w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 boty-transition boty-shadow"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -239,17 +242,24 @@ function ProductCard({
         </div>
 
         {/* Info */}
-        <div className="p-5">
-          <h3 className="font-serif text-lg text-foreground mb-1">{product.name}</h3>
-          <p className="text-sm text-muted-foreground mb-3">{product.tagline ?? product.description}</p>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-foreground">₹{product.price.toLocaleString("en-IN")}</span>
+        <div className="p-2.5 sm:p-5">
+          <h3 className="font-serif text-sm sm:text-lg text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
+          <p className="hidden sm:block text-sm text-muted-foreground mb-3">{product.tagline ?? product.description}</p>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-sm sm:text-base font-medium text-foreground">{formatPrice(product.price)}</span>
             {product.mrp && (
-              <span className="text-sm text-muted-foreground line-through">
-                ₹{product.mrp.toLocaleString("en-IN")}
+              <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                {formatPrice(product.mrp)}
               </span>
             )}
           </div>
+          {(likeCount > 0 || product.boughtCount) && (
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 flex items-center gap-1">
+              {product.boughtCount ? <span>Bought by {product.boughtCount}</span> : null}
+              {product.boughtCount && likeCount > 0 ? <span>·</span> : null}
+              {likeCount > 0 ? <span className="inline-flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-primary text-primary" />{likeCount}</span> : null}
+            </p>
+          )}
         </div>
       </div>
     </Link>

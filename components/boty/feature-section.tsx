@@ -2,38 +2,11 @@
 
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { Gem, ShieldCheck, Crown, HeartHandshake, Package, Sparkles } from "lucide-react"
-
-const features = [
-  {
-    icon: Gem,
-    title: "Premium Handpicked Sarees",
-    description: "Every piece selected for quality and craft"
-  },
-  {
-    icon: ShieldCheck,
-    title: "Quality You Can Trust",
-    description: "Authentic fabrics, verified before dispatch"
-  },
-  {
-    icon: Crown,
-    title: "Timeless Elegance",
-    description: "Designs that stay in style, season after season"
-  },
-  {
-    icon: HeartHandshake,
-    title: "Made With Passion",
-    description: "Handpicked with care for every customer"
-  }
-]
+import { Gem, Sparkles, Package } from "lucide-react"
 
 export function FeatureSection() {
   const [isVisible, setIsVisible] = useState(false)
-  const [isImageVisible, setIsImageVisible] = useState(false)
-  const [headerVisible, setHeaderVisible] = useState(false)
   const bentoRef = useRef<HTMLDivElement>(null)
-  const imageSectionRef = useRef<HTMLDivElement>(null)
-  const headerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -45,45 +18,13 @@ export function FeatureSection() {
       { threshold: 0.1 }
     )
 
-    const imageObserver = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsImageVisible(true)
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    const headerObserver = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHeaderVisible(true)
-        }
-      },
-      { threshold: 0.1 }
-    )
-
     if (bentoRef.current) {
       observer.observe(bentoRef.current)
-    }
-
-    if (imageSectionRef.current) {
-      imageObserver.observe(imageSectionRef.current)
-    }
-
-    if (headerRef.current) {
-      headerObserver.observe(headerRef.current)
     }
 
     return () => {
       if (bentoRef.current) {
         observer.unobserve(bentoRef.current)
-      }
-      if (imageSectionRef.current) {
-        imageObserver.unobserve(imageSectionRef.current)
-      }
-      if (headerRef.current) {
-        headerObserver.unobserve(headerRef.current)
       }
     }
   }, [])
@@ -111,18 +52,20 @@ export function FeatureSection() {
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
             />
-            {/* Overlay Card */}
-            <div className="absolute bottom-8 left-8 right-8 bg-white p-6 shadow-lg rounded-xl">
-              <div className="flex items-start gap-3">
-                <div>
-                  <h3 className="text-xl text-foreground mb-2 font-medium">
-                    Elegant <span className="">Packaging</span>
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Every order arrives beautifully packaged, ready to gift or keep.
-                  </p>
-                </div>
-              </div>
+            {/* Overlay text — directly on the image, no card */}
+            <div className="absolute bottom-8 left-8 right-8">
+              <h3
+                className="font-serif text-2xl md:text-3xl text-white mb-2"
+                style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}
+              >
+                Elegant Packaging
+              </h3>
+              <p
+                className="text-sm text-white/90 leading-relaxed"
+                style={{ textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}
+              >
+                Every order arrives beautifully packaged, ready to gift or keep.
+              </p>
             </div>
           </div>
 
@@ -180,62 +123,6 @@ export function FeatureSection() {
               <h3 className="text-2xl md:text-3xl mb-2 text-foreground">
                 Across India
               </h3>
-            </div>
-          </div>
-        </div>
-
-        <div
-          ref={imageSectionRef}
-          className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center my-0 py-20"
-        >
-          {/* Image */}
-          <div
-            className={`relative aspect-[4/5] rounded-3xl overflow-hidden boty-shadow transition-all duration-700 ease-out ${
-              isImageVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-            }`}
-          >
-            <Image
-              src="/images/saree-garden-breeze.jpg"
-              alt="Saree crafted with passion"
-              fill
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
-            />
-          </div>
-
-          {/* Content */}
-          <div
-            ref={headerRef}
-            className={`transition-all duration-700 ease-out ${
-              isImageVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-            }`}
-            style={{ transitionDelay: '100ms' }}
-          >
-            <span className={`text-sm tracking-[0.3em] uppercase text-primary mb-4 block ${headerVisible ? 'animate-blur-in opacity-0' : 'opacity-0'}`} style={headerVisible ? { animationDelay: '0.2s', animationFillMode: 'forwards' } : {}}>
-              Why Bindu Vastram
-            </span>
-            <h2 className={`font-serif text-4xl leading-tight text-foreground mb-6 text-balance md:text-7xl ${headerVisible ? 'animate-blur-in opacity-0' : 'opacity-0'}`} style={headerVisible ? { animationDelay: '0.4s', animationFillMode: 'forwards' } : {}}>
-              Woven with passion.
-            </h2>
-            <p className={`text-lg text-muted-foreground leading-relaxed mb-10 max-w-md ${headerVisible ? 'animate-blur-in opacity-0' : 'opacity-0'}`} style={headerVisible ? { animationDelay: '0.6s', animationFillMode: 'forwards' } : {}}>
-              Tradition in every thread, elegance in every drape. Every piece is handpicked
-              for quality, craft, and timeless style.
-            </p>
-
-            {/* Feature Cards */}
-            <div className="grid sm:grid-cols-2 gap-4">
-              {features.map((feature) => (
-                <div
-                  key={feature.title}
-                  className="group p-5 boty-transition hover:scale-[1.02] rounded-md bg-card"
-                >
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full mb-3 group-hover:bg-primary/20 boty-transition bg-background">
-                    <feature.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <h3 className="font-medium text-foreground mb-1">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </div>
-              ))}
             </div>
           </div>
         </div>

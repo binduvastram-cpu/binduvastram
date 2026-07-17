@@ -18,19 +18,19 @@ export function CategoryGrid() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 lg:grid-cols-4 sm:gap-6 sm:overflow-visible">
           {categories.map((category) => (
             <Link
               key={category.value}
               href={`/shop?category=${category.value}`}
-              className="group relative aspect-[4/5] rounded-3xl overflow-hidden boty-shadow boty-transition hover:scale-[1.02]"
+              className="group relative aspect-[4/5] rounded-3xl overflow-hidden boty-shadow boty-transition hover:scale-[1.02] w-36 shrink-0 snap-start sm:w-auto sm:shrink"
             >
               {category.image ? (
                 <Image
                   src={category.image}
                   alt={category.label}
                   fill
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  sizes="(max-width: 640px) 144px, (max-width: 1024px) 33vw, 25vw"
                   className="object-cover boty-transition group-hover:scale-105"
                 />
               ) : (

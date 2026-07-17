@@ -8,6 +8,7 @@ import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
+import { formatPrice } from "@/lib/format"
 
 export default function WishlistPage() {
   const { ids, toggleWishlist } = useWishlist()
@@ -67,10 +68,10 @@ export default function WishlistPage() {
                       <h3 className="font-serif text-lg text-foreground mb-1">{product.name}</h3>
                     </Link>
                     <div className="flex items-center gap-2 mb-4">
-                      <span className="font-medium text-foreground">₹{product.price.toLocaleString("en-IN")}</span>
+                      <span className="font-medium text-foreground">{formatPrice(product.price)}</span>
                       {product.mrp && (
                         <span className="text-sm text-muted-foreground line-through">
-                          ₹{product.mrp.toLocaleString("en-IN")}
+                          {formatPrice(product.mrp)}
                         </span>
                       )}
                     </div>
