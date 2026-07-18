@@ -90,7 +90,7 @@ export default function CartPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={`https://wa.me/917795092349?text=${encodeURIComponent(whatsappMessage)}`}
+                  href={`https://wa.me/919141718191?text=${encodeURIComponent(whatsappMessage)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-full font-medium boty-transition"

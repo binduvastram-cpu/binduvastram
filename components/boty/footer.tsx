@@ -16,7 +16,7 @@ const footerLinks = {
     { name: "Virtual Shopping", href: "/virtual-shopping" },
   ],
   support: [
-    { name: "WhatsApp Us", href: "https://wa.me/917795092349" },
+    { name: "WhatsApp Us", href: "https://wa.me/919141718191" },
     { name: "Instagram", href: "https://instagram.com/binduvastram" },
     { name: "Wishlist", href: "/wishlist" },
   ],
@@ -54,7 +54,7 @@ export function Footer() {
                 <Instagram className="w-4 h-4" />
               </a>
               <a
-                href="https://wa.me/917795092349"
+                href="https://wa.me/919141718191"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-background flex items-center justify-center text-foreground/60 hover:text-foreground boty-transition boty-shadow"

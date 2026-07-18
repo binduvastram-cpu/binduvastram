@@ -43,9 +43,13 @@ function ShopPageContent() {
   const [showFilters, setShowFilters] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   // null = the default responsive layout (2 per row on mobile, 3 on desktop);
-  // once the shopper picks a density it applies at every breakpoint.
+  // once the shopper picks a density it applies at every breakpoint. 4-per-row
+  // is a desktop-only option (its toggle button is hidden below sm), but this
+  // still caps it at 3 on narrow screens in case the choice carries over from
+  // a wider viewport in the same session.
   const [gridCols, setGridCols] = useState<2 | 3 | 4 | null>(null)
-  const gridColsClass = gridCols === 2 ? "grid-cols-2" : gridCols === 3 ? "grid-cols-3" : gridCols === 4 ? "grid-cols-4" : "grid-cols-2 lg:grid-cols-3"
+  const gridColsClass =
+    gridCols === 2 ? "grid-cols-2" : gridCols === 3 ? "grid-cols-3" : gridCols === 4 ? "grid-cols-3 sm:grid-cols-4" : "grid-cols-2 lg:grid-cols-3"
   const gridRef = useRef<HTMLDivElement>(null)
   const { products } = useProducts()
   const activeProducts = useMemo(() => products.filter((p) => p.isActive !== false), [products])
@@ -224,7 +228,7 @@ function ShopPageContent() {
                           onClick={() => setGridCols(n)}
                           aria-label={`Show ${n} per row`}
                           aria-pressed={gridCols === n}
-                          className={`p-1.5 rounded-full boty-transition ${
+                          className={`p-1.5 rounded-full boty-transition ${n === 4 ? "hidden sm:inline-flex" : ""} ${
                             gridCols === n ? "bg-foreground text-background" : "text-foreground/60 hover:text-foreground"
                           }`}
                         >

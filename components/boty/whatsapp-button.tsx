@@ -1,7 +1,8 @@
 "use client"
 
-const WHATSAPP_NUMBER = "917795092349"
-const DEFAULT_MESSAGE = "Hi Bindu Vastram, I'd like to know more about your sarees."
+const WHATSAPP_NUMBER = "919141718191"
+const DEFAULT_MESSAGE =
+  "Hello Bindu Vastram! I came across your collection and would love to know more — could you share details on pricing, fabric, and availability? Looking forward to hearing from you."
 
 export function WhatsAppButton() {
   const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(DEFAULT_MESSAGE)}`
