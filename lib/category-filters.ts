@@ -12,7 +12,7 @@ export const CATEGORY_FILTERS: Record<Category, FilterKind[]> = {
   blouses: ["fabric", "size", "color", "price"],
   "mens-wear": ["fabric", "size", "color", "price"],
   petticoats: ["fabric", "size", "color", "price"],
-  handbags: ["material", "price"],
+  handbags: ["material", "color", "price"],
   jewellery: ["price"],
 }
 

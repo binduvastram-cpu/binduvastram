@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { ShoppingBag, Heart, SlidersHorizontal, X, Columns2, Columns3, Columns4 } from "lucide-react"
+import { ShoppingBag, Heart, SlidersHorizontal, X, RectangleVertical, Columns2, Columns3, Columns4 } from "lucide-react"
 import { Header } from "@/components/boty/header"
 import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
@@ -42,15 +42,30 @@ function ShopPageContent() {
   const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   // null = the default responsive layout (2 per row on mobile, 3 on desktop);
-  // once the shopper picks a density it applies at every breakpoint. 4-per-row
-  // is a desktop-only option (its toggle button is hidden below sm), but this
-  // still caps it at 3 on narrow screens in case the choice carries over from
-  // a wider viewport in the same session.
-  const [gridCols, setGridCols] = useState<2 | 3 | 4 | null>(null)
+  // once the shopper picks a density it applies at every breakpoint. 1-per-row
+  // is mobile-only and 4-per-row is desktop-only (their toggle buttons are
+  // hidden the other way), but this still clamps 4 down to 3 on narrow
+  // screens in case the choice carries over from a wider viewport.
+  const [gridCols, setGridCols] = useState<1 | 2 | 3 | 4 | null>(null)
   const gridColsClass =
-    gridCols === 2 ? "grid-cols-2" : gridCols === 3 ? "grid-cols-3" : gridCols === 4 ? "grid-cols-3 sm:grid-cols-4" : "grid-cols-2 lg:grid-cols-3"
+    gridCols === 1 ? "grid-cols-1" :
+    gridCols === 2 ? "grid-cols-2" :
+    gridCols === 3 ? "grid-cols-3" :
+    gridCols === 4 ? "grid-cols-3 sm:grid-cols-4" :
+    "grid-cols-2 lg:grid-cols-3"
+  // At 3-per-row on a phone-width screen there just isn't room for the name/
+  // price/heart below the image — collapse those cards down to image-only.
+  const compactCard = isMobile && gridCols === 3
   const gridRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const checkViewport = () => setIsMobile(window.innerWidth < 640)
+    checkViewport()
+    window.addEventListener("resize", checkViewport)
+    return () => window.removeEventListener("resize", checkViewport)
+  }, [])
   const { products } = useProducts()
   const activeProducts = useMemo(() => products.filter((p) => p.isActive !== false), [products])
 
@@ -87,6 +102,19 @@ function ShopPageContent() {
     if (activeFilters.includes("color") && selectedColors.length > 0 && !selectedColors.includes(product.properties.color ?? "")) return false
     return true
   })
+
+  // Re-sync from the URL whenever it changes. Navigating from the mobile menu
+  // to a different category while already on /shop reuses this same page
+  // instance (no remount), so without this effect the `useState(initialCategory)`
+  // snapshot from the first mount would just keep showing whatever was
+  // selected before — the URL would change but the page wouldn't follow it.
+  useEffect(() => {
+    setSelectedCategory(searchParams.get("category") ?? "all")
+    const min = searchParams.get("price_min")
+    const max = searchParams.get("price_max")
+    setPriceMin(min ? Number(min) : 0)
+    setPriceMax(max ? Number(max) : Infinity)
+  }, [searchParams])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -219,8 +247,9 @@ function ShopPageContent() {
                 </button>
                 <div className="flex items-center gap-4 ml-auto">
                   <div className="flex items-center gap-1 bg-card rounded-full p-1">
-                    {([2, 3, 4] as const).map((n) => {
-                      const Icon = n === 2 ? Columns2 : n === 3 ? Columns3 : Columns4
+                    {([1, 2, 3, 4] as const).map((n) => {
+                      const Icon = n === 1 ? RectangleVertical : n === 2 ? Columns2 : n === 3 ? Columns3 : Columns4
+                      const mobileOnly = n === 1 ? "sm:hidden" : n === 4 ? "hidden sm:inline-flex" : ""
                       return (
                         <button
                           key={n}
@@ -228,7 +257,7 @@ function ShopPageContent() {
                           onClick={() => setGridCols(n)}
                           aria-label={`Show ${n} per row`}
                           aria-pressed={gridCols === n}
-                          className={`p-1.5 rounded-full boty-transition ${n === 4 ? "hidden sm:inline-flex" : ""} ${
+                          className={`p-1.5 rounded-full boty-transition ${mobileOnly} ${
                             gridCols === n ? "bg-foreground text-background" : "text-foreground/60 hover:text-foreground"
                           }`}
                         >
@@ -280,7 +309,7 @@ function ShopPageContent() {
               ) : (
                 <div
                   ref={gridRef}
-                  className={`grid ${gridColsClass} gap-3 sm:gap-6`}
+                  className={`grid ${gridColsClass} gap-4 sm:gap-6`}
                 >
                   {filteredProducts.map((product, index) => (
                     <ProductCard
@@ -288,6 +317,7 @@ function ShopPageContent() {
                       product={product}
                       index={index}
                       isVisible={isVisible}
+                      compact={compactCard}
                     />
                   ))}
                 </div>
@@ -430,10 +460,12 @@ function ProductCard({
   product,
   index,
   isVisible,
+  compact,
 }: {
   product: Product
   index: number
   isVisible: boolean
+  compact?: boolean
 }) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const { addItem } = useCart()
@@ -449,7 +481,7 @@ function ProductCard({
       }`}
       style={{ transitionDelay: `${index * 80}ms` }}
     >
-      <div className="bg-card rounded-2xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
+      <div className="bg-card rounded-xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
         {/* Image */}
         <div className="relative aspect-square bg-muted overflow-hidden">
           {/* Skeleton */}
@@ -482,18 +514,20 @@ function ProductCard({
               {product.badge}
             </span>
           )}
-          {/* Wishlist toggle */}
-          <button
-            type="button"
-            className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
-            onClick={(e) => {
-              e.preventDefault()
-              toggleWishlist(product.id)
-            }}
-            aria-label="Toggle wishlist"
-          >
-            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${wishlisted ? "fill-primary text-primary" : "text-foreground"}`} />
-          </button>
+          {/* Wishlist toggle — dropped in compact mode, there's no room for it */}
+          {!compact && (
+            <button
+              type="button"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
+              onClick={(e) => {
+                e.preventDefault()
+                toggleWishlist(product.id)
+              }}
+              aria-label="Toggle wishlist"
+            >
+              <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${wishlisted ? "fill-primary text-primary" : "text-foreground"}`} />
+            </button>
+          )}
           {/* Quick add button */}
           <button
             type="button"
@@ -514,26 +548,29 @@ function ProductCard({
           </button>
         </div>
 
-        {/* Info */}
-        <div className="p-2.5 sm:p-6">
-          <h3 className="font-serif text-sm sm:text-xl text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
-          <p className="hidden sm:block text-sm text-muted-foreground mb-4">{product.tagline ?? product.description}</p>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="text-sm sm:text-lg font-medium text-foreground">{formatPrice(product.price)}</span>
-            {product.mrp && (
-              <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                {formatPrice(product.mrp)}
-              </span>
+        {/* Info — dropped in compact mode (3-per-row on a phone screen), where
+            the image is all that reliably fits; tap through for the rest. */}
+        {!compact && (
+          <div className="p-3 sm:p-6">
+            <h3 className="font-serif text-sm sm:text-xl text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
+            <p className="hidden sm:block text-sm text-muted-foreground mb-4">{product.tagline ?? product.description}</p>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-sm sm:text-lg font-medium text-foreground">{formatPrice(product.price)}</span>
+              {product.mrp && (
+                <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                  {formatPrice(product.mrp)}
+                </span>
+              )}
+            </div>
+            {(likeCount > 0 || product.boughtCount) && (
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 flex items-center gap-1">
+                {product.boughtCount ? <span>Bought by {product.boughtCount}</span> : null}
+                {product.boughtCount && likeCount > 0 ? <span>·</span> : null}
+                {likeCount > 0 ? <span className="inline-flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-primary text-primary" />{likeCount}</span> : null}
+              </p>
             )}
           </div>
-          {(likeCount > 0 || product.boughtCount) && (
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 flex items-center gap-1">
-              {product.boughtCount ? <span>Bought by {product.boughtCount}</span> : null}
-              {product.boughtCount && likeCount > 0 ? <span>·</span> : null}
-              {likeCount > 0 ? <span className="inline-flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-primary text-primary" />{likeCount}</span> : null}
-            </p>
-          )}
-        </div>
+        )}
       </div>
     </Link>
   )
