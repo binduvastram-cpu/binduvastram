@@ -42,7 +42,7 @@ export default function WishlistPage() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {wishlistedProducts.map((product) => (
-                <div key={product.id} className="bg-card rounded-3xl overflow-hidden boty-shadow">
+                <div key={product.id} className="bg-card rounded-xl sm:rounded-3xl overflow-hidden boty-shadow">
                   <Link href={`/product/${product.id}`} className="block relative aspect-square bg-muted">
                     <Image
                       src={product.images[0] || "/placeholder.svg"}
@@ -53,6 +53,7 @@ export default function WishlistPage() {
                     />
                     <button
                       type="button"
+                      suppressHydrationWarning
                       onClick={(e) => {
                         e.preventDefault()
                         toggleWishlist(product.id)

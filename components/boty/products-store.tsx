@@ -5,6 +5,13 @@ import { products as seedProducts } from "@/lib/products"
 import type { Product } from "@/lib/types"
 
 const STORAGE_KEY = "bindu-vastram-products"
+const SEED_VERSION_KEY = "bindu-vastram-products-seed-version"
+// Bump this whenever lib/products.ts seed data changes in a meaningful way
+// (new fields, corrected properties, etc). Without it, a browser that has
+// already visited once keeps reading its original localStorage snapshot
+// forever and never picks up seed edits — e.g. adding a `material` value to
+// the handbag products wouldn't show up for a returning visitor.
+const SEED_VERSION = "2"
 
 interface ProductsContextType {
   products: Product[]
@@ -23,10 +30,13 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored) {
+      const storedVersion = window.localStorage.getItem(SEED_VERSION_KEY)
+      if (stored && storedVersion === SEED_VERSION) {
         setProducts(JSON.parse(stored))
       } else {
+        setProducts(seedProducts)
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seedProducts))
+        window.localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION)
       }
     } catch {
       // ignore malformed localStorage content, fall back to seed data

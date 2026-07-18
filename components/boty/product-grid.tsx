@@ -190,7 +190,7 @@ function ProductCard({
       }`}
       style={{ transitionDelay: isVisible ? `${index * 80}ms` : '0ms' }}
     >
-      <div className="bg-background rounded-2xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
+      <div className="bg-background rounded-xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
         {/* Image */}
         <div className="relative aspect-square bg-muted overflow-hidden">
           <SwipeableCardImage
@@ -216,6 +216,7 @@ function ProductCard({
           {/* Wishlist toggle */}
           <button
             type="button"
+            suppressHydrationWarning
             className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
             onClick={(e) => {
               e.preventDefault()
@@ -229,6 +230,7 @@ function ProductCard({
           {/* Quick add button */}
           <button
             type="button"
+            suppressHydrationWarning
             className="hidden sm:flex absolute bottom-4 right-4 w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 boty-transition boty-shadow"
             onClick={(e) => {
               e.preventDefault()
@@ -242,7 +244,7 @@ function ProductCard({
         </div>
 
         {/* Info */}
-        <div className="p-2.5 sm:p-5">
+        <div className="p-3 sm:p-5">
           <h3 className="font-serif text-sm sm:text-lg text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
           <p className="hidden sm:block text-sm text-muted-foreground mb-3">{product.tagline ?? product.description}</p>
           <div className="flex items-center gap-1.5 sm:gap-2">

@@ -239,6 +239,7 @@ function ShopPageContent() {
               <div className="flex items-center mb-6 pb-6 border-b border-border/50">
                 <button
                   type="button"
+                  suppressHydrationWarning
                   onClick={() => setShowFilters(!showFilters)}
                   className="lg:hidden inline-flex items-center gap-2 text-sm text-foreground"
                 >
@@ -254,6 +255,7 @@ function ShopPageContent() {
                         <button
                           key={n}
                           type="button"
+                          suppressHydrationWarning
                           onClick={() => setGridCols(n)}
                           aria-label={`Show ${n} per row`}
                           aria-pressed={gridCols === n}
@@ -518,6 +520,7 @@ function ProductCard({
           {!compact && (
             <button
               type="button"
+              suppressHydrationWarning
               className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
               onClick={(e) => {
                 e.preventDefault()
@@ -531,6 +534,7 @@ function ProductCard({
           {/* Quick add button */}
           <button
             type="button"
+            suppressHydrationWarning
             className="hidden sm:flex absolute bottom-4 right-4 w-12 h-12 rounded-full bg-background/90 backdrop-blur-sm items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 boty-transition boty-shadow"
             onClick={(e) => {
               e.preventDefault()
