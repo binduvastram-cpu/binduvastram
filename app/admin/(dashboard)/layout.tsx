@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { LayoutDashboard, Package, Users, ShoppingBag, LogOut, Menu, X, Star, Mail, Video, Tag, Layers, ListChecks } from "lucide-react"
-import { ADMIN_SESSION_KEY } from "@/lib/admin-auth"
+import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -28,20 +28,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
-    if (window.sessionStorage.getItem(ADMIN_SESSION_KEY) === "1") {
-      setAuthorized(true)
-    } else {
-      router.replace("/admin/login")
-    }
-    setChecked(true)
+    const supabase = createClient()
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.user) {
+        router.replace("/admin/login")
+        setChecked(true)
+        return
+      }
+      const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", session.user.id).single()
+      if (profile?.is_admin) {
+        setAuthorized(true)
+      } else {
+        router.replace("/admin/login")
+      }
+      setChecked(true)
+    })
   }, [router])
 
   useEffect(() => {
     setMobileNavOpen(false)
   }, [pathname])
 
-  const handleLogout = () => {
-    window.sessionStorage.removeItem(ADMIN_SESSION_KEY)
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push("/admin/login")
   }
 

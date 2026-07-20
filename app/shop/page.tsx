@@ -99,8 +99,8 @@ function ShopPageContent() {
   // Products narrowed by category + search only — used to compute filter
   // option counts and to derive which option values are even relevant.
   const categoryProducts = useMemo(
-    () => searchProducts(searchQuery, activeProducts).filter((p) => selectedCategory === "all" || p.category === selectedCategory),
-    [activeProducts, searchQuery, selectedCategory]
+    () => searchProducts(searchQuery, activeProducts, categories).filter((p) => selectedCategory === "all" || p.category === selectedCategory),
+    [activeProducts, searchQuery, selectedCategory, categories]
   )
 
   const fabricOptions = useMemo(() => optionsFrom(categoryProducts, (p) => p.properties.fabric), [categoryProducts])

@@ -9,18 +9,20 @@ import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useAccount } from "@/components/boty/account-context"
 import { useOrders } from "@/components/boty/orders-store"
-import { AccountDetailsForm } from "@/components/boty/account-form"
+import { LogInForm, SignUpForm, AddressForm } from "@/components/boty/account-form"
 import type { Order } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
-  const { profile, isLoggedIn, createAccount } = useAccount()
+  const { profile, address, isLoggedIn, signUp, logIn, saveAddress } = useAccount()
   const { placeOrder } = useOrders()
   const [couponCode, setCouponCode] = useState("")
   const [couponMessage, setCouponMessage] = useState<string | null>(null)
   const [showAddressForm, setShowAddressForm] = useState(false)
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login")
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null)
+  const [placing, setPlacing] = useState(false)
 
   const shipping = 0
   const total = subtotal + shipping
@@ -32,9 +34,9 @@ export default function CartPage() {
     setCouponMessage("Coupon codes will be validated at checkout once payments go live.")
   }
 
-  const createOrderForProfile = (customer: { name: string; phone: string; address: string; pincode: string }) => {
-    const order: Order = {
-      id: `bv_${Date.now()}`,
+  const placeOrderNow = async (customerName: string, customerPhone: string) => {
+    setPlacing(true)
+    const order = await placeOrder({
       items: items.map((item) => ({
         productId: item.id,
         name: item.name,
@@ -42,33 +44,28 @@ export default function CartPage() {
         quantity: item.quantity,
         image: item.image,
       })),
+      subtotal,
       total,
-      customerName: customer.name,
-      customerPhone: customer.phone,
-      customerAddress: customer.address,
-      customerPincode: customer.pincode,
-      paymentMethod: "COD",
-      paymentStatus: "Pending",
-      orderStatus: "Placed",
-      createdAt: new Date().toISOString(),
-    }
-    placeOrder(order)
+      customerName,
+      customerPhone,
+      customerAddress: address ? `${address.line1}, ${address.city}, ${address.state}` : "",
+      customerPincode: address?.pincode ?? "",
+    })
+    setPlacing(false)
     clearCart()
     setConfirmedOrder(order)
   }
 
-  const hasCompleteAddress = Boolean(profile?.address && profile?.pincode)
-
   const handleProceedToBuy = () => {
-    if (profile && isLoggedIn && hasCompleteAddress) {
-      createOrderForProfile(profile)
+    if (isLoggedIn && address && profile) {
+      placeOrderNow(profile.name, profile.phone)
     } else {
       setShowAddressForm(true)
     }
   }
 
   const whatsappMessage = confirmedOrder
-    ? `Hi Bindu Vastram, I've placed order #${confirmedOrder.id.slice(-6).toUpperCase()} for ${formatPrice(confirmedOrder.total)} (COD). Please confirm.`
+    ? `Hi Bindu Vastram, I've placed order #${confirmedOrder.orderCode} for ${formatPrice(confirmedOrder.total)} (COD). Please confirm.`
     : ""
 
   if (confirmedOrder) {
@@ -83,7 +80,7 @@ export default function CartPage() {
               </div>
               <h1 className="font-serif text-3xl text-foreground mb-2">Order Placed!</h1>
               <p className="text-muted-foreground mb-1">
-                Order #{confirmedOrder.id.slice(-6).toUpperCase()} • {formatPrice(confirmedOrder.total)} (Cash on Delivery)
+                Order #{confirmedOrder.orderCode} • {formatPrice(confirmedOrder.total)} (Cash on Delivery)
               </p>
               <p className="text-sm text-muted-foreground mb-8">
                 We'll prepare your order for dispatch. You can track its status anytime from your account.
@@ -126,18 +123,37 @@ export default function CartPage() {
 
           {showAddressForm ? (
             <div className="max-w-xl mx-auto bg-card rounded-3xl boty-shadow p-8">
-              <h2 className="font-serif text-2xl text-foreground mb-2">Delivery Details</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                We just need this once — save it to place future orders in one tap.
-              </p>
-              <AccountDetailsForm
-                initial={{ name: profile?.name, phone: profile?.phone }}
-                submitLabel={`Place Order (COD) • ${formatPrice(total)}`}
-                onSubmit={(details) => {
-                  createAccount(details)
-                  createOrderForProfile(details)
-                }}
-              />
+              {!isLoggedIn ? (
+                <>
+                  <h2 className="font-serif text-2xl text-foreground mb-2">
+                    {authMode === "login" ? "Log In to Continue" : "Create an Account"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    We just need this once — save it to place future orders in one tap.
+                  </p>
+                  {authMode === "login" ? <LogInForm onSubmit={logIn} /> : <SignUpForm onSubmit={signUp} />}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
+                    className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground boty-transition"
+                  >
+                    {authMode === "login" ? "New here? Create an account" : "Already have an account? Log in"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h2 className="font-serif text-2xl text-foreground mb-2">Delivery Address</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Where should we deliver this order?</p>
+                  <AddressForm
+                    initial={address ?? undefined}
+                    submitLabel={placing ? "Placing order..." : `Place Order (COD) • ${formatPrice(total)}`}
+                    onSubmit={async (addr) => {
+                      await saveAddress(addr)
+                      if (profile) await placeOrderNow(profile.name, profile.phone)
+                    }}
+                  />
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setShowAddressForm(false)}
@@ -265,9 +281,10 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={handleProceedToBuy}
-                  className="w-full bg-primary text-primary-foreground py-4 rounded-full font-medium hover:bg-primary/90 boty-transition"
+                  disabled={placing}
+                  className="w-full bg-primary text-primary-foreground py-4 rounded-full font-medium hover:bg-primary/90 boty-transition disabled:opacity-60"
                 >
-                  Proceed to Buy — Cash on Delivery
+                  {placing ? "Placing order..." : "Proceed to Buy — Cash on Delivery"}
                 </button>
                 <p className="text-xs text-muted-foreground text-center">
                   UPI, cards, and netbanking are coming in a future update — Cash on Delivery only for now.

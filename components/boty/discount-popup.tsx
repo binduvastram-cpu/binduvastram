@@ -3,7 +3,6 @@
 import { useState, useEffect, type FormEvent } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useLeads } from "./leads-store"
-import { useAccount } from "./account-context"
 
 const SHOWN_KEY = "bv-discount-popup-shown"
 const CLAIMED_KEY = "bv-discount-claimed"
@@ -15,7 +14,6 @@ export function DiscountPopup() {
   const [alreadyClaimed, setAlreadyClaimed] = useState(true) // assume claimed until checked, to avoid a flash of the tag
   const [couponCode, setCouponCode] = useState("")
   const { addLead } = useLeads()
-  const { createAccount } = useAccount()
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "" })
 
   useEffect(() => {
@@ -30,13 +28,9 @@ export function DiscountPopup() {
     window.localStorage.setItem(SHOWN_KEY, "1")
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const code = addLead(form)
-    // Claiming registers an account against their phone number, so a return
-    // visit (or a second order) recognizes them and the same offer can't be
-    // claimed twice on this device.
-    createAccount({ name: `${form.firstName} ${form.lastName}`.trim(), phone: form.phone, address: "", pincode: "" })
+    const code = await addLead(form)
     setCouponCode(code)
     setClaimed(true)
     setAlreadyClaimed(true)

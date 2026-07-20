@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, type ChangeEvent } from "react"
 import Image from "next/image"
-import { Plus, Pencil, Trash2, Search, Check, Copy } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, Check, Copy, Loader2, Upload } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { formatPrice } from "@/lib/format"
 import { isOutOfStock } from "@/lib/product-tags"
 import { generateProductCode } from "@/lib/product-code"
 import { slugify } from "@/lib/saree-collections"
+import { uploadProductMedia } from "@/lib/supabase/upload"
 
 function emptyProduct(): Product {
   return {
@@ -77,17 +78,17 @@ export default function AdminProductsPage() {
 
   if (!hydrated || !categoriesHydrated || !collectionsHydrated) return null
 
-  const handleSave = (product: Product) => {
+  const handleSave = async (product: Product) => {
     if (isCreating) {
-      addProduct({ ...product, code: product.code || generateProductCode(product, products) })
+      await addProduct({ ...product, code: product.code || generateProductCode(product, products) })
     } else {
-      updateProduct(product)
+      await updateProduct(product)
     }
     setEditingProduct(null)
     setIsCreating(false)
   }
 
-  const handleDuplicate = (product: Product) => {
+  const handleDuplicate = async (product: Product) => {
     const duplicate: Product = {
       ...product,
       id: `product_${Date.now()}`,
@@ -95,8 +96,8 @@ export default function AdminProductsPage() {
       name: `${product.name} (Copy)`,
       createdAt: new Date().toISOString(),
     }
-    addProduct(duplicate)
-    setEditingProduct(duplicate)
+    const created = await addProduct(duplicate)
+    setEditingProduct(created)
     setIsCreating(false)
   }
 
@@ -318,6 +319,8 @@ function ProductForm({
   const [newTypeFamily, setNewTypeFamily] = useState<string>("")
   const [newTypeGroup, setNewTypeGroup] = useState<string>("")
   const [newTypeLabel, setNewTypeLabel] = useState("")
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingVideo, setUploadingVideo] = useState(false)
 
   // Sum per-size stock automatically once sizes are set — keeps the two
   // numbers from ever drifting apart instead of trusting a second manual entry.
@@ -338,6 +341,32 @@ function ProductForm({
     if (!imageUrlInput.trim()) return
     setForm((f) => ({ ...f, images: [...f.images, imageUrlInput.trim()] }))
     setImageUrlInput("")
+  }
+
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ""
+    if (files.length === 0) return
+    setUploadingImage(true)
+    try {
+      const urls = await Promise.all(files.map((file) => uploadProductMedia(file, "image")))
+      setForm((f) => ({ ...f, images: [...f.images, ...urls] }))
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handleVideoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    setUploadingVideo(true)
+    try {
+      const url = await uploadProductMedia(file, "video")
+      setForm((f) => ({ ...f, videoUrl: url }))
+    } finally {
+      setUploadingVideo(false)
+    }
   }
 
   const handleSubmit = () => {
@@ -503,9 +532,9 @@ function ProductForm({
                 />
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newTypeLabel.trim()) return
-                    const slug = addItem(newTypeFamily, newTypeGroup || null, newTypeLabel.trim())
+                    const slug = await addItem(newTypeFamily, newTypeGroup || null, newTypeLabel.trim())
                     setForm((f) => ({ ...f, collection: slug }))
                     setNewTypeLabel("")
                     setAddingType(false)
@@ -669,6 +698,29 @@ function ProductForm({
         <label className="text-sm font-medium text-foreground mb-2 block">
           Images {form.images.length === 0 && <span className="text-destructive">— at least 1 required</span>}
         </label>
+        <label className={`inline-flex items-center gap-2 px-4 py-2 bg-foreground/5 hover:bg-foreground/10 rounded-full text-sm boty-transition cursor-pointer mb-3 ${uploadingImage ? "opacity-60 pointer-events-none" : ""}`}>
+          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+          {uploadingImage ? "Uploading..." : "Upload Image(s)"}
+          <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+        </label>
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-3">
+          {form.images
+            .filter((src) => !IMAGE_LIBRARY.includes(src))
+            .map((src) => (
+              <button
+                key={src}
+                type="button"
+                onClick={() => toggleImage(src)}
+                className="relative aspect-square rounded-lg overflow-hidden border-2 border-primary"
+              >
+                <Image src={src} alt="" fill sizes="80px" className="object-cover" unoptimized={src.includes("supabase.co")} />
+                <div className="absolute inset-0 bg-primary/40 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+              </button>
+            ))}
+        </div>
+        <p className="text-xs text-muted-foreground mb-2">Or pick from the curated sample library:</p>
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-3">
           {IMAGE_LIBRARY.map((src) => {
             const selected = form.images.includes(src)
@@ -708,13 +760,20 @@ function ProductForm({
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Product Video URL (optional)</label>
-        <input
-          value={form.videoUrl ?? ""}
-          onChange={(e) => setForm({ ...form, videoUrl: e.target.value || undefined })}
-          placeholder="https://... (shown as an extra slide in the product gallery)"
-          className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-        />
+        <label className="text-sm font-medium text-foreground mb-2 block">Product Video (optional)</label>
+        <div className="flex gap-2 mb-2">
+          <input
+            value={form.videoUrl ?? ""}
+            onChange={(e) => setForm({ ...form, videoUrl: e.target.value || undefined })}
+            placeholder="https://... (shown as an extra slide in the product gallery)"
+            className="flex-1 bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+          />
+          <label className={`inline-flex items-center gap-2 px-4 py-2.5 bg-foreground/5 hover:bg-foreground/10 rounded-full text-sm boty-transition cursor-pointer shrink-0 ${uploadingVideo ? "opacity-60 pointer-events-none" : ""}`}>
+            {uploadingVideo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {uploadingVideo ? "Uploading..." : "Upload"}
+            <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" disabled={uploadingVideo} />
+          </label>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-2">

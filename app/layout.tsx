@@ -6,7 +6,6 @@ import { CartProvider } from '@/components/boty/cart-context'
 import { WishlistProvider } from '@/components/boty/wishlist-context'
 import { ProductsProvider } from '@/components/boty/products-store'
 import { OrdersProvider } from '@/components/boty/orders-store'
-import { CustomersProvider } from '@/components/boty/customers-store'
 import { AccountProvider } from '@/components/boty/account-context'
 import { ReviewsProvider } from '@/components/boty/reviews-store'
 import { LeadsProvider } from '@/components/boty/leads-store'
@@ -60,21 +59,19 @@ export default function RootLayout({
               <AttributesProvider>
                 <ProductsProvider>
                   <OrdersProvider>
-                    <CustomersProvider>
-                      <AccountProvider>
-                        <ReviewsProvider>
-                          <LeadsProvider>
-                            <VirtualShoppingProvider>
-                              <OffersProvider>
-                                {children}
-                                <WhatsAppButton />
-                                <DiscountPopup />
-                              </OffersProvider>
-                            </VirtualShoppingProvider>
-                          </LeadsProvider>
-                        </ReviewsProvider>
-                      </AccountProvider>
-                    </CustomersProvider>
+                    <AccountProvider>
+                      <ReviewsProvider>
+                        <LeadsProvider>
+                          <VirtualShoppingProvider>
+                            <OffersProvider>
+                              {children}
+                              <WhatsAppButton />
+                              <DiscountPopup />
+                            </OffersProvider>
+                          </VirtualShoppingProvider>
+                        </LeadsProvider>
+                      </ReviewsProvider>
+                    </AccountProvider>
                   </OrdersProvider>
                 </ProductsProvider>
               </AttributesProvider>

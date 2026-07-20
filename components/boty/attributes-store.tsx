@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 export type AttributeKind = "fabric" | "work" | "color" | "occasion" | "material" | "size"
 
@@ -15,87 +16,54 @@ export const ATTRIBUTE_KINDS: { kind: AttributeKind; label: string }[] = [
 
 type Attributes = Record<AttributeKind, string[]>
 
-const STORAGE_KEY = "bindu-vastram-attributes"
-const SEED_VERSION_KEY = "bindu-vastram-attributes-seed-version"
-const SEED_VERSION = "1"
-
-// Seeded from every distinct value already used across the seed catalog, so
-// the dropdowns aren't empty on first load — admin can add/rename/remove
-// freely from /admin/attributes from here on.
-const DEFAULT_ATTRIBUTES: Attributes = {
-  fabric: [
-    "Pure Silk", "Kanjivaram Silk", "Handloom Cotton Silk", "Silk", "Banarasi Silk", "Chiffon",
-    "Georgette", "Satin Georgette", "Silk Blend", "Raw Silk", "Jacquard", "Cotton", "Cotton Silk",
-  ],
-  work: [
-    "Zari Weaving", "Temple Border Zari", "Zari Border", "Woven Zari", "Lace Border", "Embroidery",
-    "Sequin Embroidery", "Embroidered Yoke", "Hand Embroidery", "Kundan & Pearl", "Temple Jewellery",
-    "Stone Embellishment", "Thread Embroidery", "Block Print",
-  ],
-  color: [
-    "Royal Blue", "Magenta & Gold", "Cream & Gold", "Magenta", "Red & Pink", "Maroon", "Yellow & Red",
-    "Green", "Green & Gold", "Red & Multicolour", "Emerald Green", "Wine Red", "Gold", "Cream",
-    "Off-White", "Black", "Teal", "Indigo",
-  ],
-  occasion: [
-    "Wedding & Festive", "Wedding", "Festive", "Daywear", "Party & Reception", "Wedding & Religious",
-    "Festive & Wedding", "Party & Festive", "Festive & Daily Wear",
-  ],
-  material: ["Silk Brocade", "Satin"],
-  size: ["S", "M", "L", "XL", "XXL", "32", "34", "36", "38", "40"],
-}
-
-function cloneDefaults(): Attributes {
-  return JSON.parse(JSON.stringify(DEFAULT_ATTRIBUTES))
+function emptyAttributes(): Attributes {
+  return { fabric: [], work: [], color: [], occasion: [], material: [], size: [] }
 }
 
 interface AttributesContextType {
   attributes: Attributes
   hydrated: boolean
-  addValue: (kind: AttributeKind, value: string) => void
-  renameValue: (kind: AttributeKind, oldValue: string, newValue: string) => void
-  deleteValue: (kind: AttributeKind, value: string) => void
+  addValue: (kind: AttributeKind, value: string) => Promise<void>
+  renameValue: (kind: AttributeKind, oldValue: string, newValue: string) => Promise<void>
+  deleteValue: (kind: AttributeKind, value: string) => Promise<void>
 }
 
 const AttributesContext = createContext<AttributesContextType | undefined>(undefined)
 
 export function AttributesProvider({ children }: { children: ReactNode }) {
-  const [attributes, setAttributes] = useState<Attributes>(cloneDefaults())
+  const [supabase] = useState(() => createClient())
+  const [attributes, setAttributes] = useState<Attributes>(emptyAttributes())
   const [hydrated, setHydrated] = useState(false)
 
-  useEffect(() => {
-    try {
-      const storedVersion = window.localStorage.getItem(SEED_VERSION_KEY)
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored && storedVersion === SEED_VERSION) {
-        setAttributes(JSON.parse(stored))
-      } else {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cloneDefaults()))
-        window.localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION)
-      }
-    } catch {
-      // ignore malformed localStorage content
+  const fetchAll = async () => {
+    const { data } = await supabase.from("attributes").select("kind, value").order("value")
+    const next = emptyAttributes()
+    for (const row of data ?? []) {
+      next[row.kind as AttributeKind].push(row.value)
     }
-    setHydrated(true)
+    setAttributes(next)
+  }
+
+  useEffect(() => {
+    fetchAll().then(() => setHydrated(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const persist = (next: Attributes) => {
-    setAttributes(next)
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  }
-
-  const addValue = (kind: AttributeKind, value: string) => {
+  const addValue = async (kind: AttributeKind, value: string) => {
     if (attributes[kind].includes(value)) return
-    persist({ ...attributes, [kind]: [...attributes[kind], value] })
+    await supabase.from("attributes").insert({ kind, value })
+    await fetchAll()
   }
 
-  const renameValue = (kind: AttributeKind, oldValue: string, newValue: string) => {
+  const renameValue = async (kind: AttributeKind, oldValue: string, newValue: string) => {
     if (oldValue === newValue || attributes[kind].includes(newValue)) return
-    persist({ ...attributes, [kind]: attributes[kind].map((v) => (v === oldValue ? newValue : v)) })
+    await supabase.from("attributes").update({ value: newValue }).eq("kind", kind).eq("value", oldValue)
+    await fetchAll()
   }
 
-  const deleteValue = (kind: AttributeKind, value: string) => {
-    persist({ ...attributes, [kind]: attributes[kind].filter((v) => v !== value) })
+  const deleteValue = async (kind: AttributeKind, value: string) => {
+    await supabase.from("attributes").delete().eq("kind", kind).eq("value", value)
+    await fetchAll()
   }
 
   return (

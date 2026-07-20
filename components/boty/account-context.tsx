@@ -1,98 +1,173 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useCustomers } from "./customers-store"
+import { createClient } from "@/lib/supabase/client"
 
-const STORAGE_KEY = "bindu-vastram-account"
+const CART_KEY = "bindu-vastram-cart"
+
+// Cart stays guest-first in localStorage (see cart-context.tsx) — this backs
+// it up to the account the moment identity is known, so it isn't lost once a
+// device-only guest signs in. (Wishlist has its own equivalent sync built
+// directly into wishlist-context.tsx, since it needs to merge in both
+// directions on every session restore, not just at sign-in.)
+async function mergeGuestCartToAccount(supabase: ReturnType<typeof createClient>, uid: string) {
+  try {
+    const cartRaw = window.localStorage.getItem(CART_KEY)
+    if (cartRaw) {
+      const items: { id: string; quantity: number }[] = JSON.parse(cartRaw)
+      if (items.length > 0) {
+        await supabase
+          .from("cart_items")
+          .upsert(
+            items.map((i) => ({ profile_id: uid, product_id: i.id, size: "", quantity: i.quantity })),
+            { onConflict: "profile_id,product_id,size" }
+          )
+      }
+    }
+  } catch {
+    // best-effort — a failed merge shouldn't block sign-in
+  }
+}
 
 export interface AccountProfile {
   name: string
   phone: string
-  address: string
-  pincode: string
+  email: string
 }
 
-interface StoredAccount {
-  profile: AccountProfile
-  isLoggedIn: boolean
+export interface AccountAddress {
+  line1: string
+  city: string
+  pincode: string
+  state: string
 }
 
 interface AccountContextType {
   profile: AccountProfile | null
+  address: AccountAddress | null
   isLoggedIn: boolean
   hydrated: boolean
-  createAccount: (profile: AccountProfile) => void
-  updateProfile: (profile: AccountProfile) => void
-  login: () => void
-  logout: () => void
-  deleteAccount: () => void
+  signUp: (input: { email: string; password: string; name: string; phone: string }) => Promise<string | null>
+  logIn: (input: { email: string; password: string }) => Promise<string | null>
+  logout: () => Promise<void>
+  updateProfile: (input: { name: string; phone: string }) => Promise<void>
+  saveAddress: (input: AccountAddress) => Promise<void>
+  deleteAccount: () => Promise<void>
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined)
 
 export function AccountProvider({ children }: { children: ReactNode }) {
+  const [supabase] = useState(() => createClient())
+  const [userId, setUserId] = useState<string | null>(null)
   const [profile, setProfile] = useState<AccountProfile | null>(null)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [address, setAddress] = useState<AccountAddress | null>(null)
   const [hydrated, setHydrated] = useState(false)
-  const { upsertCustomer } = useCustomers()
+
+  const loadAccountData = async (uid: string) => {
+    const [{ data: p }, { data: a }] = await Promise.all([
+      supabase.from("profiles").select("name, phone, email").eq("id", uid).single(),
+      supabase.from("addresses").select("line1, city, pincode, state").eq("profile_id", uid).maybeSingle(),
+    ])
+    setProfile(p ? { name: p.name ?? "", phone: p.phone ?? "", email: p.email ?? "" } : null)
+    setAddress(a ? { line1: a.line1, city: a.city ?? "", pincode: a.pincode, state: a.state ?? "" } : null)
+  }
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const parsed: StoredAccount = JSON.parse(stored)
-        setProfile(parsed.profile)
-        setIsLoggedIn(parsed.isLoggedIn)
+    let active = true
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return
+      if (session?.user) {
+        setUserId(session.user.id)
+        await loadAccountData(session.user.id)
       }
-    } catch {
-      // ignore malformed localStorage content
+      setHydrated(true)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id)
+        await loadAccountData(session.user.id)
+      } else {
+        setUserId(null)
+        setProfile(null)
+        setAddress(null)
+      }
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
     }
-    setHydrated(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const persist = (nextProfile: AccountProfile | null, nextIsLoggedIn: boolean) => {
-    if (nextProfile) {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ profile: nextProfile, isLoggedIn: nextIsLoggedIn })
-      )
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY)
+  const signUp: AccountContextType["signUp"] = async ({ email, password, name, phone }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, phone } },
+    })
+    if (error) return error.message
+    if (data.user) {
+      // The handle_new_user trigger already stamps name/phone from the signup
+      // metadata above — this update just covers the (rare) race where the
+      // trigger's row isn't committed yet yet by the time this runs.
+      await supabase.from("profiles").update({ name, phone }).eq("id", data.user.id)
+      setUserId(data.user.id)
+      setProfile({ name, phone, email })
+      await mergeGuestCartToAccount(supabase, data.user.id)
     }
+    return null
   }
 
-  const createAccount = (newProfile: AccountProfile) => {
-    setProfile(newProfile)
-    setIsLoggedIn(true)
-    persist(newProfile, true)
-    upsertCustomer(newProfile)
+  const logIn: AccountContextType["logIn"] = async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return error.message
+    if (data.user) await mergeGuestCartToAccount(supabase, data.user.id)
+    return null
   }
 
-  const updateProfile = (updated: AccountProfile) => {
-    setProfile(updated)
-    persist(updated, isLoggedIn)
-    upsertCustomer(updated)
+  const logout = async () => {
+    await supabase.auth.signOut()
   }
 
-  const login = () => {
-    setIsLoggedIn(true)
-    if (profile) persist(profile, true)
+  const updateProfile: AccountContextType["updateProfile"] = async ({ name, phone }) => {
+    if (!userId) return
+    await supabase.from("profiles").update({ name, phone }).eq("id", userId)
+    setProfile((p) => (p ? { ...p, name, phone } : p))
   }
 
-  const logout = () => {
-    setIsLoggedIn(false)
-    if (profile) persist(profile, false)
+  const saveAddress: AccountContextType["saveAddress"] = async (input) => {
+    if (!userId) return
+    await supabase.from("addresses").upsert({ profile_id: userId, ...input }, { onConflict: "profile_id" })
+    setAddress(input)
   }
 
-  const deleteAccount = () => {
+  const deleteAccount = async () => {
+    if (!userId) return
+    await fetch("/api/account/delete", { method: "POST" })
+    await supabase.auth.signOut()
+    setUserId(null)
     setProfile(null)
-    setIsLoggedIn(false)
-    persist(null, false)
+    setAddress(null)
   }
 
   return (
     <AccountContext.Provider
-      value={{ profile, isLoggedIn, hydrated, createAccount, updateProfile, login, logout, deleteAccount }}
+      value={{
+        profile,
+        address,
+        isLoggedIn: !!userId,
+        hydrated,
+        signUp,
+        logIn,
+        logout,
+        updateProfile,
+        saveAddress,
+        deleteAccount,
+      }}
     >
       {children}
     </AccountContext.Provider>

@@ -4,19 +4,36 @@ import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { ShieldCheck } from "lucide-react"
-import { ADMIN_SESSION_KEY } from "@/lib/admin-auth"
+import { createClient } from "@/lib/supabase/client"
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password.trim()) return
-    // Placeholder gate — any non-empty credentials are accepted until real
-    // admin auth is wired up in the backend phase.
-    window.sessionStorage.setItem(ADMIN_SESSION_KEY, "1")
+    setSubmitting(true)
+    setError(null)
+
+    const supabase = createClient()
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError(signInError.message)
+      setSubmitting(false)
+      return
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", data.user.id).single()
+    if (!profile?.is_admin) {
+      await supabase.auth.signOut()
+      setError("This account doesn't have admin access.")
+      setSubmitting(false)
+      return
+    }
+
     router.push("/admin")
   }
 
@@ -29,9 +46,6 @@ export default function AdminLoginPage() {
             <ShieldCheck className="w-5 h-5 text-primary" />
           </div>
           <h1 className="font-serif text-2xl text-foreground mb-1">Admin Login</h1>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            Temporary access gate — any email/password works until real admin auth is wired up.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,11 +71,13 @@ export default function AdminLoginPage() {
               className="w-full bg-background border border-border/50 rounded-full px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 boty-transition"
             />
           </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"
-            className="w-full bg-primary text-primary-foreground py-3 rounded-full font-medium boty-transition hover:bg-primary/90"
+            disabled={submitting}
+            className="w-full bg-primary text-primary-foreground py-3 rounded-full font-medium boty-transition hover:bg-primary/90 disabled:opacity-60"
           >
-            Log In
+            {submitting ? "Logging in..." : "Log In"}
           </button>
         </form>
       </div>

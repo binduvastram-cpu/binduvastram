@@ -1,17 +1,10 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react"
-import { SAREE_FAMILIES, buildTaxonomyIndex, slugify, type CollectionFamily } from "@/lib/saree-collections"
-
-const STORAGE_KEY = "bindu-vastram-collections"
-const SEED_VERSION_KEY = "bindu-vastram-collections-seed-version"
-const SEED_VERSION = "1"
+import { createClient } from "@/lib/supabase/client"
+import { buildTaxonomyIndex, slugify, type CollectionFamily } from "@/lib/saree-collections"
 
 type Families = Record<string, CollectionFamily>
-
-function cloneDefaults(): Families {
-  return JSON.parse(JSON.stringify(SAREE_FAMILIES))
-}
 
 interface CollectionsContextType {
   families: Families
@@ -20,98 +13,95 @@ interface CollectionsContextType {
   ancestorsOf: (slug: string) => string[]
   familyOf: (slug: string) => string | undefined
   allCollectionSlugs: () => string[]
-  addFamily: (label: string) => string
-  addItem: (familySlug: string, groupSlug: string | null, label: string) => string
-  deleteItem: (slug: string) => void
-  deleteFamily: (familySlug: string) => void
+  addFamily: (label: string) => Promise<string>
+  addItem: (familySlug: string, groupSlug: string | null, label: string) => Promise<string>
+  deleteItem: (slug: string) => Promise<void>
+  deleteFamily: (familySlug: string) => Promise<void>
 }
 
 const CollectionsContext = createContext<CollectionsContextType | undefined>(undefined)
 
 export function CollectionsProvider({ children }: { children: ReactNode }) {
-  const [families, setFamilies] = useState<Families>(cloneDefaults())
+  const [supabase] = useState(() => createClient())
+  const [families, setFamilies] = useState<Families>({})
   const [hydrated, setHydrated] = useState(false)
 
-  useEffect(() => {
-    try {
-      const storedVersion = window.localStorage.getItem(SEED_VERSION_KEY)
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored && storedVersion === SEED_VERSION) {
-        setFamilies(JSON.parse(stored))
-      } else {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cloneDefaults()))
-        window.localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION)
-      }
-    } catch {
-      // ignore malformed localStorage content
-    }
-    setHydrated(true)
-  }, [])
+  const fetchAll = async () => {
+    const [{ data: familyRows }, { data: groupRows }, { data: itemRows }] = await Promise.all([
+      supabase.from("collection_families").select("id, slug, label"),
+      supabase.from("collection_groups").select("id, slug, label, family_id"),
+      supabase.from("collection_items").select("slug, label, family_id, group_id"),
+    ])
 
-  const persist = (next: Families) => {
-    setFamilies(next)
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    const tree: Families = {}
+    for (const f of familyRows ?? []) tree[f.slug] = { label: f.label }
+
+    const familyById = new Map((familyRows ?? []).map((f) => [f.id, f]))
+    const groupById = new Map((groupRows ?? []).map((g) => [g.id, g]))
+
+    for (const g of groupRows ?? []) {
+      const family = familyById.get(g.family_id)
+      if (!family) continue
+      const node = tree[family.slug]
+      node.groups = node.groups ?? {}
+      node.groups[g.slug] = { label: g.label, items: [] }
+    }
+
+    for (const it of itemRows ?? []) {
+      const family = familyById.get(it.family_id)
+      if (!family) continue
+      const node = tree[family.slug]
+      if (it.group_id) {
+        const group = groupById.get(it.group_id)
+        if (group && node.groups?.[group.slug]) node.groups[group.slug].items.push(it.label)
+      } else {
+        node.items = node.items ?? []
+        node.items.push(it.label)
+      }
+    }
+
+    setFamilies(tree)
   }
+
+  useEffect(() => {
+    fetchAll().then(() => setHydrated(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const index = useMemo(() => buildTaxonomyIndex(families), [families])
 
-  const addFamily = (label: string): string => {
+  const addFamily = async (label: string): Promise<string> => {
     const slug = slugify(label)
     if (families[slug]) return slug
-    persist({ ...families, [slug]: { label, items: [] } })
+    await supabase.from("collection_families").insert({ slug, label })
+    await fetchAll()
     return slug
   }
 
-  const addItem = (familySlug: string, groupSlug: string | null, label: string): string => {
+  const addItem = async (familySlug: string, groupSlug: string | null, label: string): Promise<string> => {
     const leafSlug = slugify(label)
-    const family = families[familySlug]
+    const { data: family } = await supabase.from("collection_families").select("id").eq("slug", familySlug).single()
     if (!family) return leafSlug
 
-    if (groupSlug && family.groups?.[groupSlug]) {
-      const group = family.groups[groupSlug]
-      if (group.items.includes(label)) return leafSlug
-      persist({
-        ...families,
-        [familySlug]: {
-          ...family,
-          groups: { ...family.groups, [groupSlug]: { ...group, items: [...group.items, label] } },
-        },
-      })
-    } else {
-      const items = family.items ?? []
-      if (items.includes(label)) return leafSlug
-      persist({ ...families, [familySlug]: { ...family, items: [...items, label] } })
+    let groupId: string | null = null
+    if (groupSlug) {
+      const { data: group } = await supabase.from("collection_groups").select("id").eq("slug", groupSlug).maybeSingle()
+      groupId = group?.id ?? null
     }
+
+    await supabase.from("collection_items").insert({ family_id: family.id, group_id: groupId, slug: leafSlug, label })
+    await fetchAll()
     return leafSlug
   }
 
-  const deleteItem = (slug: string) => {
-    const node = index.nodesBySlug[slug]
-    if (!node || node.slug === node.family) return // don't delete a whole family via this path
-    const family = families[node.family]
-    if (!family) return
-
-    if (node.group && family.groups?.[node.group]) {
-      const group = family.groups[node.group]
-      persist({
-        ...families,
-        [node.family]: {
-          ...family,
-          groups: {
-            ...family.groups,
-            [node.group]: { ...group, items: group.items.filter((item) => slugify(item) !== slug) },
-          },
-        },
-      })
-    } else if (family.items) {
-      persist({ ...families, [node.family]: { ...family, items: family.items.filter((item) => slugify(item) !== slug) } })
-    }
+  const deleteItem = async (slug: string) => {
+    await supabase.from("collection_items").delete().eq("slug", slug)
+    await fetchAll()
   }
 
-  const deleteFamily = (familySlug: string) => {
-    const next = { ...families }
-    delete next[familySlug]
-    persist(next)
+  const deleteFamily = async (familySlug: string) => {
+    await supabase.from("collection_families").delete().eq("slug", familySlug)
+    await fetchAll()
   }
 
   return (

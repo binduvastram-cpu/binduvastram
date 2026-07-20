@@ -16,7 +16,6 @@ import { ProductGallery } from "@/components/boty/product-gallery"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { sizeChartForCategory } from "@/lib/size-charts"
 import { formatPrice } from "@/lib/format"
-import { getGuestId } from "@/lib/guest-id"
 import { useOffers } from "@/components/boty/offers-store"
 import { computeSalePrice, discountLabel } from "@/lib/offers"
 import { displayBoughtCount, realSampleLocations } from "@/lib/social-proof"
@@ -48,7 +47,6 @@ export default function ProductPage() {
   const [isAdded, setIsAdded] = useState(false)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewText, setReviewText] = useState("")
-  const [guestName, setGuestName] = useState("")
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
 
   const productReviews = reviews.filter((r) => r.productId === product.id && r.status === "approved")
@@ -101,21 +99,17 @@ export default function ProductPage() {
     router.push("/cart")
   }
 
-  const handleReviewSubmit = (e: FormEvent) => {
+  const handleReviewSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!reviewText.trim()) return
-    const customerName = isLoggedIn && profile
-      ? profile.name
-      : guestName.trim() || `Guest ${getGuestId()}`
-    addReview({
+    if (!reviewText.trim() || !isLoggedIn || !profile) return
+    await addReview({
       productId: product.id,
-      customerName,
+      customerName: profile.name,
       rating: reviewRating,
       text: reviewText.trim(),
     })
     setReviewSubmitted(true)
     setReviewText("")
-    setGuestName("")
   }
 
   const propertyEntries = Object.entries(product.properties).filter(([, value]) => value !== undefined)
@@ -462,11 +456,14 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Submit a review — open to everyone; guests are labeled with a per-device
-                random id since there's no account to attach the review to. Goes to
-                moderation before appearing either way. */}
+            {/* Submit a review — requires a real account so it's tied to a genuine
+                customer; goes to moderation before appearing either way. */}
             <div className="bg-card rounded-2xl p-6">
-              {reviewSubmitted ? (
+              {!isLoggedIn ? (
+                <p className="text-sm text-muted-foreground">
+                  <Link href="/account" className="text-primary hover:underline">Log in</Link> to leave a review.
+                </p>
+              ) : reviewSubmitted ? (
                 <p className="text-sm text-foreground">Thanks for your review! It'll appear here once approved.</p>
               ) : (
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
@@ -480,18 +477,6 @@ export default function ProductPage() {
                       ))}
                     </div>
                   </div>
-                  {!isLoggedIn && (
-                    <div>
-                      <label className="text-sm font-medium text-foreground mb-2 block">Your Name (optional)</label>
-                      <input
-                        type="text"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        placeholder="Leave blank to post as a guest"
-                        className="w-full bg-background border border-border/50 rounded-full px-4 py-3 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-                  )}
                   <div>
                     <label className="text-sm font-medium text-foreground mb-2 block">Your Review</label>
                     <textarea

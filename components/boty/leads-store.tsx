@@ -1,15 +1,14 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createClient } from "@/lib/supabase/client"
 import type { Lead } from "@/lib/types"
-
-const STORAGE_KEY = "bindu-vastram-leads"
 
 interface LeadsContextType {
   leads: Lead[]
   hydrated: boolean
-  addLead: (lead: Omit<Lead, "id" | "couponCode" | "redeemed" | "createdAt">) => string
-  markRedeemed: (id: string) => void
+  addLead: (lead: Omit<Lead, "id" | "couponCode" | "redeemed" | "createdAt">) => Promise<string>
+  markRedeemed: (id: string) => Promise<void>
 }
 
 const LeadsContext = createContext<LeadsContextType | undefined>(undefined)
@@ -20,39 +19,50 @@ function generateCouponCode() {
 }
 
 export function LeadsProvider({ children }: { children: ReactNode }) {
+  const [supabase] = useState(() => createClient())
   const [leads, setLeads] = useState<Lead[]>([])
   const [hydrated, setHydrated] = useState(false)
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored) setLeads(JSON.parse(stored))
-    } catch {
-      // ignore malformed localStorage content
-    }
-    setHydrated(true)
-  }, [])
-
-  const persist = (next: Lead[]) => {
-    setLeads(next)
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  const fetchAll = async () => {
+    const { data } = await supabase
+      .from("leads")
+      .select("id, first_name, last_name, email, phone, coupon_code, redeemed, created_at")
+      .order("created_at", { ascending: false })
+    setLeads(
+      (data ?? []).map((row) => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        couponCode: row.coupon_code,
+        redeemed: row.redeemed,
+        createdAt: row.created_at,
+      }))
+    )
   }
 
-  const addLead = (lead: Omit<Lead, "id" | "couponCode" | "redeemed" | "createdAt">) => {
+  useEffect(() => {
+    fetchAll().then(() => setHydrated(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const addLead = async (lead: Omit<Lead, "id" | "couponCode" | "redeemed" | "createdAt">): Promise<string> => {
     const couponCode = generateCouponCode()
-    const newLead: Lead = {
-      ...lead,
-      id: `lead_${Date.now()}`,
-      couponCode,
-      redeemed: false,
-      createdAt: new Date().toISOString(),
-    }
-    persist([newLead, ...leads])
+    await supabase.from("leads").insert({
+      first_name: lead.firstName,
+      last_name: lead.lastName,
+      email: lead.email,
+      phone: lead.phone,
+      coupon_code: couponCode,
+    })
+    await fetchAll()
     return couponCode
   }
 
-  const markRedeemed = (id: string) => {
-    persist(leads.map((l) => (l.id === id ? { ...l, redeemed: true } : l)))
+  const markRedeemed = async (id: string) => {
+    await supabase.from("leads").update({ redeemed: true }).eq("id", id)
+    await fetchAll()
   }
 
   return (

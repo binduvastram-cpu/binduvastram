@@ -1,6 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+
+const STORAGE_KEY = "bindu-vastram-cart"
 
 export interface CartItem {
   id: string
@@ -29,23 +31,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [isOpen, setIsOpen] = useState(false)
 
+  // Guest-first: the cart lives in localStorage so it survives a refresh
+  // without requiring an account. Once logged in, it's also pushed to
+  // Supabase (see account-context.tsx's sign-in handler) so it isn't lost.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY)
+      if (stored) setItems(JSON.parse(stored))
+    } catch {
+      // ignore malformed localStorage content
+    }
+  }, [])
+
+  const persist = (next: CartItem[]) => {
+    setItems(next)
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  }
+
   const addItem = (newItem: Omit<CartItem, "quantity">) => {
-    setItems(currentItems => {
-      const existingItem = currentItems.find(item => item.id === newItem.id)
-      if (existingItem) {
-        return currentItems.map(item =>
-          item.id === newItem.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      }
-      return [...currentItems, { ...newItem, quantity: 1 }]
-    })
+    const existingItem = items.find((item) => item.id === newItem.id)
+    persist(
+      existingItem
+        ? items.map((item) => (item.id === newItem.id ? { ...item, quantity: item.quantity + 1 } : item))
+        : [...items, { ...newItem, quantity: 1 }]
+    )
     setIsOpen(true)
   }
 
   const removeItem = (id: string) => {
-    setItems(currentItems => currentItems.filter(item => item.id !== id))
+    persist(items.filter((item) => item.id !== id))
   }
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -53,15 +67,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem(id)
       return
     }
-    setItems(currentItems =>
-      currentItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
-    )
+    persist(items.map((item) => (item.id === id ? { ...item, quantity } : item)))
   }
 
   const clearCart = () => {
-    setItems([])
+    persist([])
   }
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
