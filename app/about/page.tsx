@@ -1,6 +1,4 @@
 import Image from "next/image"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 
 export const metadata = {
   title: "Our Story — Bindu Vastram",
@@ -9,8 +7,6 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -74,8 +70,6 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }

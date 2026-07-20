@@ -4,8 +4,6 @@ import { useState, useEffect, useRef, useMemo, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { ShoppingBag, Heart, SlidersHorizontal, X, RectangleVertical, Columns2, Columns3, Columns4 } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
@@ -249,8 +247,6 @@ function ShopPageContent() {
 
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           {/* Header */}
@@ -291,10 +287,13 @@ function ShopPageContent() {
           </div>
 
           <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-10">
-            {/* Desktop sidebar — sticky and independently scrollable, so a long
-                filter list scrolls on its own instead of dragging the whole page
-                (and the product grid keeps scrolling normally beside it). */}
-            <aside className="hidden lg:block lg:sticky lg:top-28 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
+            {/* Desktop sidebar — sticky within the grid, so it stays in place
+                while the product grid scrolls but still naturally releases at
+                the end of this grid (before the footer) instead of floating
+                over it the way a plain `fixed` panel would. top-36 matches
+                the page's own lg:pt-36 so it lines up with the rest of the
+                page content instead of sitting higher up against the nav. */}
+            <aside className="hidden lg:block lg:sticky lg:top-36 lg:self-start lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:pr-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
               <h2 className="font-serif text-2xl text-foreground mb-5">Filter:</h2>
               <div className="space-y-6">
                 {categoryFilter}
@@ -387,7 +386,7 @@ function ShopPageContent() {
               ) : (
                 <div
                   ref={gridRef}
-                  className={`grid ${gridColsClass} gap-4 sm:gap-6`}
+                  className={`grid ${gridColsClass} gap-x-4 gap-y-6 sm:gap-6`}
                 >
                   {filteredProducts.map((product, index) => (
                     <ProductCard
@@ -405,8 +404,6 @@ function ShopPageContent() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }
@@ -568,7 +565,7 @@ function ProductCard({
       }`}
       style={{ transitionDelay: `${index * 80}ms` }}
     >
-      <div className="bg-card rounded-xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
+      <div className="bg-card rounded-2xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
         {/* Image */}
         <div className="relative aspect-square bg-muted overflow-hidden">
           {/* Skeleton */}
@@ -590,7 +587,7 @@ function ProductCard({
           {/* Badge */}
           {badgeText && (
             <span
-              className={`absolute top-2 left-2 sm:top-4 sm:left-4 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs tracking-wide ${
+              className={`absolute top-3 left-3 sm:top-4 sm:left-4 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs tracking-wide ${
                 applied || badgeText === "Sale"
                   ? "bg-destructive/10 text-destructive"
                   : badgeText === "New"
@@ -608,7 +605,7 @@ function ProductCard({
             <button
               type="button"
               suppressHydrationWarning
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
               onClick={(e) => {
                 e.preventDefault()
                 toggleWishlist(product.id)
@@ -642,10 +639,10 @@ function ProductCard({
         {/* Info — dropped in compact mode (3-per-row on a phone screen), where
             the image is all that reliably fits; tap through for the rest. */}
         {!compact && (
-          <div className="p-3 sm:p-6">
-            <h3 className="font-serif text-sm sm:text-xl text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
+          <div className="p-4 sm:p-6">
+            <h3 className="font-serif text-base sm:text-xl text-foreground mb-1 sm:mb-1 truncate">{product.name}</h3>
             <p className="hidden sm:block text-sm text-muted-foreground mb-4">{product.tagline ?? product.description}</p>
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-2">
               <span className="text-sm sm:text-lg font-medium text-foreground">
                 {formatPrice(applied ? applied.salePrice : product.price)}
               </span>
@@ -656,7 +653,7 @@ function ProductCard({
               ) : null}
             </div>
             {boughtCount > 0 && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">
                 Bought by {boughtCount}
               </p>
             )}

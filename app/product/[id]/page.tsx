@@ -4,8 +4,6 @@ import { useState, useEffect, type ReactNode, type FormEvent } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { ChevronLeft, Minus, Plus, ChevronDown, Heart, Star, Check, Truck, PackageCheck, ShieldCheck, RotateCcw } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
@@ -171,8 +169,6 @@ export default function ProductPage() {
 
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-28 lg:pb-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           {/* Back Link */}
@@ -527,8 +523,6 @@ export default function ProductPage() {
           </DialogContent>
         </Dialog>
       )}
-
-      <Footer />
 
       {/* Sticky mobile Add to Cart / Buy Now bar */}
       <div

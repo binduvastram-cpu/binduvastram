@@ -3,33 +3,31 @@
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { User, PackageOpen, LogOut, Trash2, Pencil } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useAccount, type AccountProfile, type AccountAddress } from "@/components/boty/account-context"
 import { useOrders } from "@/components/boty/orders-store"
+import { useCancellationRequests } from "@/components/boty/cancellation-requests-store"
 import { ProfileField, SignUpForm, LogInForm, AddressForm } from "@/components/boty/account-form"
 import { formatPrice } from "@/lib/format"
 
+const NON_CANCELLABLE_STATUSES = new Set(["Delivered", "Cancelled"])
+
 export default function AccountPage() {
-  const { profile, address, isLoggedIn, hydrated, signUp, logIn, logout, updateProfile, saveAddress, deleteAccount } = useAccount()
+  const { profile, address, isLoggedIn, hydrated, signUp, logInWithPhone, logout, updateProfile, saveAddress, deleteAccount } = useAccount()
 
   if (!hydrated) {
     return (
       <main className="min-h-screen">
-        <Header />
         <div className="pt-28 lg:pt-36 pb-20" />
-        <Footer />
       </main>
     )
   }
 
   return (
     <main className="min-h-screen">
-      <Header />
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-xl mx-auto px-6 lg:px-8">
           {!isLoggedIn ? (
-            <AuthCard onSignUp={signUp} onLogIn={logIn} />
+            <AuthCard onSignUp={signUp} onLogIn={logInWithPhone} />
           ) : (
             <AccountDashboard
               profile={profile!}
@@ -42,7 +40,6 @@ export default function AccountPage() {
           )}
         </div>
       </div>
-      <Footer />
     </main>
   )
 }
@@ -51,10 +48,10 @@ function AuthCard({
   onSignUp,
   onLogIn,
 }: {
-  onSignUp: (input: { email: string; password: string; name: string; phone: string }) => Promise<string | null>
-  onLogIn: (input: { email: string; password: string }) => Promise<string | null>
+  onSignUp: (input: { email: string; password: string; name: string; phone: string; address: AccountAddress }) => Promise<string | null>
+  onLogIn: (input: { phone: string; password: string }) => Promise<string | null>
 }) {
-  const [mode, setMode] = useState<"login" | "signup">("login")
+  const [mode, setMode] = useState<"login" | "signup">("signup")
 
   return (
     <div className="bg-card rounded-3xl boty-shadow p-8">
@@ -105,6 +102,9 @@ function AccountDashboard({
   const [form, setForm] = useState({ name: profile.name, phone: profile.phone })
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const { orders } = useOrders()
+  const { requests, requestCancellation } = useCancellationRequests()
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null)
+  const [cancelReason, setCancelReason] = useState("")
 
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault()
@@ -188,6 +188,7 @@ function AccountDashboard({
         ) : (
           <div className="text-sm text-foreground">
             <p>{address!.line1}</p>
+            {address!.line2 && <p>{address!.line2}</p>}
             <p>{address!.city}, {address!.state} - {address!.pincode}</p>
           </div>
         )}
@@ -217,6 +218,60 @@ function AccountDashboard({
                   {order.items.length} {order.items.length === 1 ? "item" : "items"}
                 </p>
                 <p className="text-sm font-medium text-foreground">{formatPrice(order.total)} • Cash on Delivery</p>
+
+                {(() => {
+                  const existingRequest = requests.find((r) => r.orderId === order.id)
+                  if (existingRequest) {
+                    return (
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Cancellation request: <span className="font-medium">{existingRequest.status}</span>
+                      </p>
+                    )
+                  }
+                  if (NON_CANCELLABLE_STATUSES.has(order.orderStatus)) return null
+                  if (cancelingOrderId === order.id) {
+                    return (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          placeholder="Reason (optional)"
+                          rows={2}
+                          className="w-full bg-background border border-border/50 rounded-2xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 boty-transition resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await requestCancellation(order.id, cancelReason)
+                              setCancelingOrderId(null)
+                              setCancelReason("")
+                            }}
+                            className="flex-1 bg-destructive text-destructive-foreground py-2 rounded-full text-xs font-medium boty-transition hover:bg-destructive/90"
+                          >
+                            Submit Cancellation Request
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCancelingOrderId(null)}
+                            className="flex-1 border border-border text-foreground py-2 rounded-full text-xs font-medium boty-transition hover:bg-muted"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setCancelingOrderId(order.id)}
+                      className="text-xs text-destructive hover:underline mt-3"
+                    >
+                      Request Cancellation
+                    </button>
+                  )
+                })()}
               </div>
             ))}
           </div>

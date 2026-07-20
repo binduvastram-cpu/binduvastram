@@ -133,6 +133,8 @@ export interface Order {
   paymentStatus: "Pending" | "Paid on Delivery"
   orderStatus: OrderStatus
   createdAt: string
+  couponCode?: string
+  discountAmount?: number
 }
 
 export interface Offer {
@@ -146,6 +148,19 @@ export interface Offer {
   discountValue: number
   startDate?: string
   endDate?: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface Coupon {
+  id: string
+  code: string
+  discountPercent: number
+  scope: "all" | "category" | "product"
+  // A Category value when scope is "category", a productId when scope is "product".
+  targetId?: string
+  startDate?: string
+  endDate: string
   isActive: boolean
   createdAt: string
 }

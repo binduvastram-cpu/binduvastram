@@ -3,8 +3,6 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Heart, ShoppingBag } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
@@ -22,8 +20,6 @@ export default function WishlistPage() {
 
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h1 className="font-serif text-4xl md:text-5xl text-foreground mb-4 text-balance">Your Wishlist</h1>
@@ -109,8 +105,6 @@ export default function WishlistPage() {
           )}
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }

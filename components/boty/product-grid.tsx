@@ -140,7 +140,7 @@ export function ProductGrid() {
         {/* Product Grid */}
         <div
           ref={gridRef}
-          className="flex overflow-x-auto gap-3 snap-x snap-mandatory -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 sm:overflow-visible"
+          className="flex overflow-x-auto gap-4 snap-x snap-mandatory -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 sm:overflow-visible"
         >
           {visibleProducts.map((product, index) => (
             <ProductCard
@@ -205,7 +205,7 @@ function ProductCard({
       }`}
       style={{ transitionDelay: isVisible ? `${index * 80}ms` : '0ms' }}
     >
-      <div className="bg-background rounded-xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
+      <div className="bg-background rounded-2xl sm:rounded-3xl overflow-hidden boty-shadow boty-transition group-hover:scale-[1.02]">
         {/* Image */}
         <div className="relative aspect-square bg-muted overflow-hidden">
           <SwipeableCardImage
@@ -217,7 +217,7 @@ function ProductCard({
           {/* Badge */}
           {badgeText && (
             <span
-              className={`absolute top-2 left-2 sm:top-4 sm:left-4 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs tracking-wide bg-white text-black ${
+              className={`absolute top-3 left-3 sm:top-4 sm:left-4 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs tracking-wide bg-white text-black ${
                 applied || badgeText === "Sale"
                   ? "bg-destructive/10 text-destructive"
                   : badgeText === "New"
@@ -234,7 +234,7 @@ function ProductCard({
           <button
             type="button"
             suppressHydrationWarning
-            className="absolute top-2 right-2 sm:top-4 sm:right-4 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 boty-transition boty-shadow"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -261,10 +261,10 @@ function ProductCard({
         </div>
 
         {/* Info */}
-        <div className="p-3 sm:p-5">
-          <h3 className="font-serif text-sm sm:text-lg text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
+        <div className="p-4 sm:p-5">
+          <h3 className="font-serif text-base sm:text-lg text-foreground mb-1 sm:mb-1 truncate">{product.name}</h3>
           <p className="hidden sm:block text-sm text-muted-foreground mb-3">{product.tagline ?? product.description}</p>
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2">
             <span className="text-sm sm:text-base font-medium text-foreground">
               {formatPrice(applied ? applied.salePrice : product.price)}
             </span>
@@ -275,7 +275,7 @@ function ProductCard({
             ) : null}
           </div>
           {boughtCount > 0 && (
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+            <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">
               Bought by {boughtCount}
             </p>
           )}

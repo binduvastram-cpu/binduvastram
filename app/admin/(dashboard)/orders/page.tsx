@@ -1,10 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Search, ShoppingBag } from "lucide-react"
+import { Search, ShoppingBag, MessageCircle } from "lucide-react"
 import { useOrders } from "@/components/boty/orders-store"
 import type { OrderStatus } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
+import { buildWhatsAppLink } from "@/lib/whatsapp"
+import { STATUS_MESSAGES } from "@/lib/order-status-messages"
 
 const STATUS_OPTIONS: OrderStatus[] = [
   "Placed",
@@ -23,7 +25,10 @@ export default function AdminOrdersPage() {
   if (!hydrated) return null
 
   const filtered = orders.filter(
-    (o) => o.customerName.toLowerCase().includes(search.toLowerCase()) || o.customerPhone.includes(search) || o.id.includes(search)
+    (o) =>
+      o.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      o.customerPhone.includes(search) ||
+      o.orderCode.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -53,7 +58,7 @@ export default function AdminOrdersPage() {
             <div key={order.id} className="bg-card rounded-2xl boty-shadow p-5">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                 <div>
-                  <p className="font-medium text-foreground">Order #{order.id.slice(-6).toUpperCase()}</p>
+                  <p className="font-medium text-foreground">Order #{order.orderCode}</p>
                   <p className="text-sm text-muted-foreground">
                     {order.customerName} • {order.customerPhone}
                   </p>
@@ -67,23 +72,41 @@ export default function AdminOrdersPage() {
                 </div>
               </div>
 
-              <div className="text-sm text-muted-foreground mb-3">
-                {order.items.map((item) => `${item.name} × ${item.quantity}`).join(", ")}
+              <div className="text-sm text-muted-foreground mb-3 space-y-1">
+                {order.items.map((item, index) => (
+                  <p key={`${item.productId}-${index}`}>
+                    <span className="text-foreground/60">#{item.productId.slice(-6).toUpperCase() || "—"}</span>
+                    {" • "}
+                    {item.name}
+                    {item.size ? ` (${item.size})` : ""} × {item.quantity} — {formatPrice(item.price * item.quantity)}
+                  </p>
+                ))}
               </div>
 
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <p className="text-xs text-muted-foreground max-w-sm">
                   Ship to: {order.customerAddress}, {order.customerPincode}
                 </p>
-                <select
-                  value={order.orderStatus}
-                  onChange={(e) => updateOrderStatus(order.id, e.target.value as OrderStatus)}
-                  className="bg-background border border-border/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary/50"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={buildWhatsAppLink(order.customerPhone, STATUS_MESSAGES[order.orderStatus](order))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Message customer on WhatsApp about this status"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#25D366] text-white boty-transition hover:opacity-90"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </a>
+                  <select
+                    value={order.orderStatus}
+                    onChange={(e) => updateOrderStatus(order.id, e.target.value as OrderStatus)}
+                    className="bg-background border border-border/50 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary/50"
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           ))}

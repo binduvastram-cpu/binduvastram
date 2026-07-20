@@ -6,7 +6,7 @@ import type { Order, OrderItem, OrderStatus } from "@/lib/types"
 
 const SELECT = `
   id, order_code, customer_name, customer_phone, customer_address, customer_pincode,
-  total, payment_method, payment_status, order_status, created_at,
+  total, payment_method, payment_status, order_status, created_at, coupon_code, discount_amount,
   order_items ( product_id, product_name, size, price_at_purchase, quantity, image_url )
 `
 
@@ -22,6 +22,8 @@ type OrderRow = {
   payment_status: Order["paymentStatus"]
   order_status: OrderStatus
   created_at: string
+  coupon_code: string | null
+  discount_amount: number
   order_items: {
     product_id: string | null
     product_name: string
@@ -53,6 +55,8 @@ function rowToOrder(row: OrderRow): Order {
     paymentStatus: row.payment_status,
     orderStatus: row.order_status,
     createdAt: row.created_at,
+    couponCode: row.coupon_code ?? undefined,
+    discountAmount: Number(row.discount_amount ?? 0),
   }
 }
 
@@ -64,6 +68,8 @@ export interface PlaceOrderInput {
   customerPhone: string
   customerAddress: string
   customerPincode: string
+  couponCode?: string
+  discountAmount?: number
 }
 
 interface OrdersContextType {
@@ -112,6 +118,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         customer_pincode: input.customerPincode,
         subtotal: input.subtotal,
         total: input.total,
+        coupon_code: input.couponCode ?? null,
+        discount_amount: input.discountAmount ?? 0,
       })
       .select("id, order_code, created_at")
       .single()
@@ -143,6 +151,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       paymentStatus: "Pending",
       orderStatus: "Placed",
       createdAt: orderRow.created_at,
+      couponCode: input.couponCode,
+      discountAmount: input.discountAmount,
     }
     setOrders((current) => [newOrder, ...current])
     return newOrder

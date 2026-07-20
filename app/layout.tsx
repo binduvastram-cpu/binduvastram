@@ -11,11 +11,14 @@ import { ReviewsProvider } from '@/components/boty/reviews-store'
 import { LeadsProvider } from '@/components/boty/leads-store'
 import { VirtualShoppingProvider } from '@/components/boty/virtual-shopping-store'
 import { OffersProvider } from '@/components/boty/offers-store'
+import { CouponsProvider } from '@/components/boty/coupons-store'
+import { CancellationRequestsProvider } from '@/components/boty/cancellation-requests-store'
 import { CategoriesProvider } from '@/components/boty/categories-store'
 import { CollectionsProvider } from '@/components/boty/collections-store'
 import { AttributesProvider } from '@/components/boty/attributes-store'
 import { WhatsAppButton } from '@/components/boty/whatsapp-button'
 import { DiscountPopup } from '@/components/boty/discount-popup'
+import { SiteChrome } from '@/components/boty/site-chrome'
 import './globals.css'
 
 const dmSans = DM_Sans({ 
@@ -64,9 +67,13 @@ export default function RootLayout({
                         <LeadsProvider>
                           <VirtualShoppingProvider>
                             <OffersProvider>
-                              {children}
-                              <WhatsAppButton />
-                              <DiscountPopup />
+                              <CouponsProvider>
+                                <CancellationRequestsProvider>
+                                  <SiteChrome>{children}</SiteChrome>
+                                  <WhatsAppButton />
+                                  <DiscountPopup />
+                                </CancellationRequestsProvider>
+                              </CouponsProvider>
                             </OffersProvider>
                           </VirtualShoppingProvider>
                         </LeadsProvider>

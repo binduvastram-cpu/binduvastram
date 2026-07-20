@@ -2,8 +2,6 @@
 
 import { useState, type FormEvent } from "react"
 import { Video, Check } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useVirtualShopping } from "@/components/boty/virtual-shopping-store"
 import { useProducts } from "@/components/boty/products-store"
 
@@ -30,8 +28,6 @@ export default function VirtualShoppingPage() {
 
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-10">
@@ -135,8 +131,6 @@ export default function VirtualShoppingPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }

@@ -111,16 +111,24 @@ export function Header() {
 
   // On the homepage, the header pops in right after the hero's center
   // dialogue fades out — everywhere else it appears immediately as before.
-  // If the intro already played this session, skip the wait entirely.
+  // If the intro already played this session, skip the wait entirely. This
+  // runs once, at the header's initial mount, and never again — the header
+  // now persists across client-side navigation (see site-chrome.tsx), so
+  // re-running this on every pathname change used to replay the reveal
+  // animation on every single navigation away from "/".
   useEffect(() => {
-    if (!isHome) return
+    if (!isHome) {
+      setHeaderVisible(true)
+      return
+    }
     if (window.sessionStorage.getItem(HERO_INTRO_SEEN_KEY) === "1") {
       setHeaderVisible(true)
       return
     }
     const timer = setTimeout(() => setHeaderVisible(true), LEFT_TEXT_START)
     return () => clearTimeout(timer)
-  }, [isHome])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const submitSearch = (e: FormEvent) => {
     e.preventDefault()
@@ -131,12 +139,8 @@ export function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 ${
-        isHome
-          ? `transition-all duration-700 ease-out ${
-              headerVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
-            }`
-          : "animate-scale-fade-in"
+      className={`fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 transition-all duration-700 ease-out ${
+        headerVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
       }`}
     >
       {/* Row 1 — utility bar: search / centered logo+wordmark (wordmark desktop-only) / account icons */}

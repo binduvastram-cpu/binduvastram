@@ -77,7 +77,7 @@ export type Database = {
           {
             foreignKeyName: "addresses_profile_id_fkey"
             columns: ["profile_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -100,6 +100,51 @@ export type Database = {
           value?: string
         }
         Relationships: []
+      }
+      cancellation_requests: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          profile_id: string
+          reason: string | null
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          profile_id: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          profile_id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cancellation_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cancellation_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cart_items: {
         Row: {
@@ -252,6 +297,60 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "collection_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          category_id: string | null
+          code: string
+          created_at: string
+          discount_percent: number
+          end_date: string
+          id: string
+          is_active: boolean
+          product_id: string | null
+          scope: string
+          start_date: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          code: string
+          created_at?: string
+          discount_percent: number
+          end_date: string
+          id?: string
+          is_active?: boolean
+          product_id?: string | null
+          scope?: string
+          start_date?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          code?: string
+          created_at?: string
+          discount_percent?: number
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          product_id?: string | null
+          scope?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -429,11 +528,13 @@ export type Database = {
       orders: {
         Row: {
           address_id: string | null
+          coupon_code: string | null
           created_at: string
           customer_address: string
           customer_name: string
           customer_phone: string
           customer_pincode: string
+          discount_amount: number
           id: string
           order_code: string
           order_status: string
@@ -445,11 +546,13 @@ export type Database = {
         }
         Insert: {
           address_id?: string | null
+          coupon_code?: string | null
           created_at?: string
           customer_address: string
           customer_name: string
           customer_phone: string
           customer_pincode: string
+          discount_amount?: number
           id?: string
           order_code?: string
           order_status?: string
@@ -461,11 +564,13 @@ export type Database = {
         }
         Update: {
           address_id?: string | null
+          coupon_code?: string | null
           created_at?: string
           customer_address?: string
           customer_name?: string
           customer_phone?: string
           customer_pincode?: string
+          discount_amount?: number
           id?: string
           order_code?: string
           order_status?: string
@@ -792,6 +897,17 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      validate_coupon: {
+        Args: { p_code: string }
+        Returns: {
+          category_value: string
+          discount_percent: number
+          message: string
+          product_id: string
+          scope: string
+          valid: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

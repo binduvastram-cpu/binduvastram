@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Package, Users, ShoppingBag, LogOut, Menu, X, Star, Mail, Video, Tag, Layers, ListChecks } from "lucide-react"
+import { LayoutDashboard, Package, Users, ShoppingBag, LogOut, Menu, X, Star, Mail, Video, Tag, Layers, ListChecks, XCircle, BadgePercent } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
@@ -13,10 +13,12 @@ const navItems = [
   { href: "/admin/categories", label: "Categories & Types", icon: Layers },
   { href: "/admin/attributes", label: "Attributes", icon: ListChecks },
   { href: "/admin/offers", label: "Offers", icon: Tag },
+  { href: "/admin/coupons", label: "Coupons", icon: BadgePercent },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+  { href: "/admin/cancellations", label: "Cancellations", icon: XCircle },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
-  { href: "/admin/leads", label: "Leads & Coupons", icon: Mail },
+  { href: "/admin/leads", label: "Leads", icon: Mail },
   { href: "/admin/virtual-shopping", label: "Virtual Shopping", icon: Video },
 ]
 

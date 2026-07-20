@@ -2,8 +2,6 @@
 
 import Link from "next/link"
 import { Tag, ArrowRight } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useOffers } from "@/components/boty/offers-store"
 import { useProducts } from "@/components/boty/products-store"
 import { useCategories } from "@/components/boty/categories-store"
@@ -28,8 +26,6 @@ export default function OffersPage() {
 
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -81,8 +77,6 @@ export default function OffersPage() {
           )}
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }

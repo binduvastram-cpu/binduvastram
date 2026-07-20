@@ -1,41 +1,108 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Minus, Plus, Trash2, ShoppingBag, Check, MessageCircle } from "lucide-react"
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useAccount } from "@/components/boty/account-context"
 import { useOrders } from "@/components/boty/orders-store"
-import { LogInForm, SignUpForm, AddressForm } from "@/components/boty/account-form"
+import { useCoupons } from "@/components/boty/coupons-store"
+import { useProducts } from "@/components/boty/products-store"
+import { ProfileField } from "@/components/boty/account-form"
+import { SUPPORT_WHATSAPP_NUMBER, buildWhatsAppLink } from "@/lib/whatsapp"
 import type { Order } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
 
+const emptyCheckoutForm = { name: "", phone: "", line1: "", line2: "", city: "", state: "", pincode: "" }
+
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal, clearCart } = useCart()
-  const { profile, address, isLoggedIn, signUp, logIn, saveAddress } = useAccount()
+  const { profile, address, isLoggedIn, logInWithPhone, saveAddress } = useAccount()
   const { placeOrder } = useOrders()
+  const { validateCoupon } = useCoupons()
+  const { products } = useProducts()
   const [couponCode, setCouponCode] = useState("")
   const [couponMessage, setCouponMessage] = useState<string | null>(null)
-  const [showAddressForm, setShowAddressForm] = useState(false)
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login")
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number } | null>(null)
+  const [showCheckout, setShowCheckout] = useState(false)
+  const [checkoutForm, setCheckoutForm] = useState(emptyCheckoutForm)
+  const [prefilled, setPrefilled] = useState(false)
+  const [showLoginToggle, setShowLoginToggle] = useState(false)
+  const [loginForm, setLoginForm] = useState({ phone: "", password: "" })
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loggingIn, setLoggingIn] = useState(false)
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null)
   const [placing, setPlacing] = useState(false)
 
   const shipping = 0
-  const total = subtotal + shipping
+  const discountAmount = appliedCoupon?.discountAmount ?? 0
+  const total = Math.max(0, subtotal + shipping - discountAmount)
 
-  // UI-only placeholder — real coupon validation runs server-side against
-  // Supabase in phase 2. No discount is actually applied here.
-  const handleApplyCoupon = () => {
+  // Once a session resolves (already logged in, or just logged in via the
+  // "already have an account" toggle below), autofill the checkout form from
+  // the saved profile/address — but only once, so it never stomps edits the
+  // shopper has already made.
+  useEffect(() => {
+    if (isLoggedIn && profile && !prefilled) {
+      setCheckoutForm({
+        name: profile.name || "",
+        phone: profile.phone || "",
+        line1: address?.line1 ?? "",
+        line2: address?.line2 ?? "",
+        city: address?.city ?? "",
+        state: address?.state ?? "",
+        pincode: address?.pincode ?? "",
+      })
+      setPrefilled(true)
+      setShowLoginToggle(false)
+    }
+  }, [isLoggedIn, profile, address, prefilled])
+
+  const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return
-    setCouponMessage("Coupon codes will be validated at checkout once payments go live.")
+    const result = await validateCoupon(couponCode.trim())
+    if (!result.valid) {
+      setAppliedCoupon(null)
+      setCouponMessage(result.message)
+      return
+    }
+
+    let base = subtotal
+    if (result.scope === "category" && result.categoryValue) {
+      base = items
+        .filter((item) => products.find((p) => p.id === item.id)?.category === result.categoryValue)
+        .reduce((sum, item) => sum + item.price * item.quantity, 0)
+    } else if (result.scope === "product" && result.productId) {
+      base = items.filter((item) => item.id === result.productId).reduce((sum, item) => sum + item.price * item.quantity, 0)
+    }
+
+    const amount = Math.round((base * result.discountPercent) / 100)
+    if (amount <= 0) {
+      setAppliedCoupon(null)
+      setCouponMessage("This coupon doesn't apply to any items in your cart.")
+      return
+    }
+
+    setAppliedCoupon({ code: couponCode.trim().toUpperCase(), discountAmount: amount })
+    setCouponMessage(`Coupon applied — you saved ${formatPrice(amount)}!`)
   }
 
-  const placeOrderNow = async (customerName: string, customerPhone: string) => {
+  const handleMiniLogin = async (e: FormEvent) => {
+    e.preventDefault()
+    setLoggingIn(true)
+    setLoginError(null)
+    const err = await logInWithPhone(loginForm)
+    setLoggingIn(false)
+    if (err) setLoginError(err)
+  }
+
+  const handlePlaceOrder = async (e: FormEvent) => {
+    e.preventDefault()
     setPlacing(true)
+    const customerAddress = [checkoutForm.line1, checkoutForm.line2, checkoutForm.city, checkoutForm.state]
+      .filter(Boolean)
+      .join(", ")
     const order = await placeOrder({
       items: items.map((item) => ({
         productId: item.id,
@@ -46,22 +113,25 @@ export default function CartPage() {
       })),
       subtotal,
       total,
-      customerName,
-      customerPhone,
-      customerAddress: address ? `${address.line1}, ${address.city}, ${address.state}` : "",
-      customerPincode: address?.pincode ?? "",
+      customerName: checkoutForm.name,
+      customerPhone: checkoutForm.phone,
+      customerAddress,
+      customerPincode: checkoutForm.pincode,
+      couponCode: appliedCoupon?.code,
+      discountAmount: appliedCoupon?.discountAmount,
     })
+    if (isLoggedIn) {
+      await saveAddress({
+        line1: checkoutForm.line1,
+        line2: checkoutForm.line2,
+        city: checkoutForm.city,
+        state: checkoutForm.state,
+        pincode: checkoutForm.pincode,
+      })
+    }
     setPlacing(false)
     clearCart()
     setConfirmedOrder(order)
-  }
-
-  const handleProceedToBuy = () => {
-    if (isLoggedIn && address && profile) {
-      placeOrderNow(profile.name, profile.phone)
-    } else {
-      setShowAddressForm(true)
-    }
   }
 
   const whatsappMessage = confirmedOrder
@@ -71,7 +141,6 @@ export default function CartPage() {
   if (confirmedOrder) {
     return (
       <main className="min-h-screen">
-        <Header />
         <div className="pt-28 lg:pt-36 pb-20">
           <div className="max-w-xl mx-auto px-6 lg:px-8">
             <div className="bg-card rounded-3xl boty-shadow p-8 text-center">
@@ -87,7 +156,7 @@ export default function CartPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href={`https://wa.me/919141718191?text=${encodeURIComponent(whatsappMessage)}`}
+                  href={buildWhatsAppLink(SUPPORT_WHATSAPP_NUMBER, whatsappMessage)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-[#25D366] text-white py-3 rounded-full font-medium boty-transition"
@@ -105,15 +174,12 @@ export default function CartPage() {
             </div>
           </div>
         </div>
-        <Footer />
       </main>
     )
   }
 
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h1 className="font-serif text-4xl md:text-5xl text-foreground mb-4 text-balance">Your Cart</h1>
@@ -121,42 +187,91 @@ export default function CartPage() {
             {items.length} {items.length === 1 ? "item" : "items"} in your cart
           </p>
 
-          {showAddressForm ? (
+          {showCheckout ? (
             <div className="max-w-xl mx-auto bg-card rounded-3xl boty-shadow p-8">
-              {!isLoggedIn ? (
-                <>
-                  <h2 className="font-serif text-2xl text-foreground mb-2">
-                    {authMode === "login" ? "Log In to Continue" : "Create an Account"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    We just need this once — save it to place future orders in one tap.
-                  </p>
-                  {authMode === "login" ? <LogInForm onSubmit={logIn} /> : <SignUpForm onSubmit={signUp} />}
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                    className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground boty-transition"
-                  >
-                    {authMode === "login" ? "New here? Create an account" : "Already have an account? Log in"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h2 className="font-serif text-2xl text-foreground mb-2">Delivery Address</h2>
-                  <p className="text-sm text-muted-foreground mb-6">Where should we deliver this order?</p>
-                  <AddressForm
-                    initial={address ?? undefined}
-                    submitLabel={placing ? "Placing order..." : `Place Order (COD) • ${formatPrice(total)}`}
-                    onSubmit={async (addr) => {
-                      await saveAddress(addr)
-                      if (profile) await placeOrderNow(profile.name, profile.phone)
-                    }}
-                  />
-                </>
+              <h2 className="font-serif text-2xl text-foreground mb-2">Delivery Details</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                You don't need an account to order — just fill in your details below.
+              </p>
+
+              {!isLoggedIn && (
+                <div className="mb-6">
+                  {!showLoginToggle ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginToggle(true)}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Already have an account? Log in to autofill your saved details
+                    </button>
+                  ) : (
+                    <form onSubmit={handleMiniLogin} className="bg-background rounded-2xl p-4 space-y-3">
+                      <ProfileField
+                        label="Mobile Number"
+                        value={loginForm.phone}
+                        onChange={(v) => setLoginForm({ ...loginForm, phone: v })}
+                        placeholder="10-digit mobile number"
+                        type="tel"
+                        required
+                      />
+                      <ProfileField
+                        label="Password"
+                        value={loginForm.password}
+                        onChange={(v) => setLoginForm({ ...loginForm, password: v })}
+                        type="password"
+                        required
+                      />
+                      {loginError && <p className="text-sm text-destructive">{loginError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={loggingIn}
+                          className="flex-1 bg-primary text-primary-foreground py-2.5 rounded-full text-sm font-medium boty-transition hover:bg-primary/90 disabled:opacity-60"
+                        >
+                          {loggingIn ? "Logging in..." : "Log In"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginToggle(false)}
+                          className="flex-1 border border-border text-foreground py-2.5 rounded-full text-sm font-medium boty-transition hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
               )}
+
+              <form onSubmit={handlePlaceOrder} className="space-y-4">
+                <ProfileField label="Full Name" value={checkoutForm.name} onChange={(v) => setCheckoutForm({ ...checkoutForm, name: v })} placeholder="Your name" required />
+                <ProfileField label="Phone Number" value={checkoutForm.phone} onChange={(v) => setCheckoutForm({ ...checkoutForm, phone: v })} placeholder="10-digit mobile number" type="tel" required />
+                <ProfileField label="Colony / Street" value={checkoutForm.line1} onChange={(v) => setCheckoutForm({ ...checkoutForm, line1: v })} placeholder="House no, street, colony" textarea required />
+                <ProfileField label="Landmark" value={checkoutForm.line2} onChange={(v) => setCheckoutForm({ ...checkoutForm, line2: v })} placeholder="Nearby landmark" />
+                <ProfileField label="District / City" value={checkoutForm.city} onChange={(v) => setCheckoutForm({ ...checkoutForm, city: v })} placeholder="District or city" required />
+                <div className="grid grid-cols-2 gap-4">
+                  <ProfileField label="State" value={checkoutForm.state} onChange={(v) => setCheckoutForm({ ...checkoutForm, state: v })} placeholder="State" required />
+                  <ProfileField label="Pincode" value={checkoutForm.pincode} onChange={(v) => setCheckoutForm({ ...checkoutForm, pincode: v })} placeholder="6-digit pincode" required />
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Need to cancel later? {isLoggedIn
+                    ? "You can request cancellation anytime from your Account page."
+                    : `Contact us on WhatsApp at ${SUPPORT_WHATSAPP_NUMBER} — cancellation requests need an account.`}
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={placing}
+                  className="w-full bg-primary text-primary-foreground py-4 rounded-full font-medium boty-transition hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {placing ? "Placing order..." : `Place Order (COD) • ${formatPrice(total)}`}
+                </button>
+              </form>
+
               <button
                 type="button"
-                onClick={() => setShowAddressForm(false)}
+                onClick={() => setShowCheckout(false)}
                 className="w-full mt-3 text-sm text-muted-foreground hover:text-foreground boty-transition"
               >
                 Back to cart
@@ -272,6 +387,12 @@ export default function CartPage() {
                     <span>Shipping</span>
                     <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-primary">
+                      <span>Coupon ({appliedCoupon.code})</span>
+                      <span>-{formatPrice(appliedCoupon.discountAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-medium text-foreground pt-2 border-t border-border/50">
                     <span>Total</span>
                     <span>{formatPrice(total)}</span>
@@ -280,11 +401,10 @@ export default function CartPage() {
 
                 <button
                   type="button"
-                  onClick={handleProceedToBuy}
-                  disabled={placing}
-                  className="w-full bg-primary text-primary-foreground py-4 rounded-full font-medium hover:bg-primary/90 boty-transition disabled:opacity-60"
+                  onClick={() => setShowCheckout(true)}
+                  className="w-full bg-primary text-primary-foreground py-4 rounded-full font-medium hover:bg-primary/90 boty-transition"
                 >
-                  {placing ? "Placing order..." : "Proceed to Buy — Cash on Delivery"}
+                  Proceed to Buy — Cash on Delivery
                 </button>
                 <p className="text-xs text-muted-foreground text-center">
                   UPI, cards, and netbanking are coming in a future update — Cash on Delivery only for now.
@@ -294,8 +414,6 @@ export default function CartPage() {
           )}
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }

@@ -4,13 +4,13 @@ import { Mail } from "lucide-react"
 import { useLeads } from "@/components/boty/leads-store"
 
 export default function AdminLeadsPage() {
-  const { leads, hydrated } = useLeads()
+  const { leads, hydrated, markRedeemed } = useLeads()
 
   if (!hydrated) return null
 
   return (
     <div>
-      <h1 className="font-serif text-3xl text-foreground mb-1">Leads & Coupons</h1>
+      <h1 className="font-serif text-3xl text-foreground mb-1">Leads</h1>
       <p className="text-muted-foreground mb-6">
         Captured from the first-time-buyer discount popup. {leads.length} total.
       </p>
@@ -32,6 +32,7 @@ export default function AdminLeadsPage() {
                   <th className="text-left px-5 py-3">Coupon</th>
                   <th className="text-left px-5 py-3">Status</th>
                   <th className="text-left px-5 py-3">Date</th>
+                  <th className="text-left px-5 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -49,6 +50,17 @@ export default function AdminLeadsPage() {
                     <td className="px-5 py-3 text-muted-foreground">
                       {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
+                    <td className="px-5 py-3">
+                      {!lead.redeemed && (
+                        <button
+                          type="button"
+                          onClick={() => markRedeemed(lead.id)}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Mark Redeemed
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -62,15 +74,26 @@ export default function AdminLeadsPage() {
                 <p className="text-sm text-muted-foreground">{lead.email}</p>
                 <p className="text-sm text-muted-foreground">{lead.phone}</p>
                 <p className="text-xs font-mono text-foreground mt-1">{lead.couponCode}</p>
-                <span className={`inline-block mt-2 text-xs px-2.5 py-1 rounded-full ${lead.redeemed ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                  {lead.redeemed ? "Redeemed" : "Unredeemed"}
-                </span>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className={`inline-block text-xs px-2.5 py-1 rounded-full ${lead.redeemed ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {lead.redeemed ? "Redeemed" : "Unredeemed"}
+                  </span>
+                  {!lead.redeemed && (
+                    <button
+                      type="button"
+                      onClick={() => markRedeemed(lead.id)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Mark Redeemed
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
           <p className="text-xs text-muted-foreground mt-6">
-            Redemption status will update automatically once coupon codes can be applied at real checkout (backend phase).
+            These welcome codes are separate from the Coupons feature — mark a lead Redeemed manually once they use theirs.
           </p>
         </>
       )}

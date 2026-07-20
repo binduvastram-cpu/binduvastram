@@ -1,6 +1,3 @@
-import { Header } from "@/components/boty/header"
-import { Footer } from "@/components/boty/footer"
-
 export const metadata = {
   title: "Return & Refund Policy — Bindu Vastram",
 }
@@ -31,8 +28,6 @@ const sections = [
 export default function ReturnsPage() {
   return (
     <main className="min-h-screen">
-      <Header />
-
       <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -54,8 +49,6 @@ export default function ReturnsPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </main>
   )
 }

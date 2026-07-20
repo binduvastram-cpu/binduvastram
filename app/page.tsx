@@ -1,4 +1,3 @@
-import { Header } from "@/components/boty/header"
 import { Hero } from "@/components/boty/hero"
 import { ShopByPrice } from "@/components/boty/shop-by-price"
 import { OffersTicker } from "@/components/boty/offers-ticker"
@@ -11,12 +10,10 @@ import { VirtualShoppingBanner } from "@/components/boty/virtual-shopping-banner
 import { Testimonials } from "@/components/boty/testimonials"
 import { CTABanner } from "@/components/boty/cta-banner"
 import { Newsletter } from "@/components/boty/newsletter"
-import { Footer } from "@/components/boty/footer"
 
 export default function HomePage() {
   return (
     <main>
-      <Header />
       <Hero />
       <ShopByPrice />
       <OffersTicker />
@@ -29,7 +26,6 @@ export default function HomePage() {
       <Testimonials />
       <CTABanner />
       <Newsletter />
-      <Footer />
     </main>
   )
 }

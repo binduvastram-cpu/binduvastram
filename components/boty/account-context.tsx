@@ -37,6 +37,7 @@ export interface AccountProfile {
 
 export interface AccountAddress {
   line1: string
+  line2: string
   city: string
   pincode: string
   state: string
@@ -47,8 +48,10 @@ interface AccountContextType {
   address: AccountAddress | null
   isLoggedIn: boolean
   hydrated: boolean
-  signUp: (input: { email: string; password: string; name: string; phone: string }) => Promise<string | null>
+  signUp: (input: { email: string; password: string; name: string; phone: string; address: AccountAddress }) => Promise<string | null>
   logIn: (input: { email: string; password: string }) => Promise<string | null>
+  logInWithPhone: (input: { phone: string; password: string }) => Promise<string | null>
+  checkPhoneExists: (phone: string) => Promise<boolean>
   logout: () => Promise<void>
   updateProfile: (input: { name: string; phone: string }) => Promise<void>
   saveAddress: (input: AccountAddress) => Promise<void>
@@ -67,10 +70,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const loadAccountData = async (uid: string) => {
     const [{ data: p }, { data: a }] = await Promise.all([
       supabase.from("profiles").select("name, phone, email").eq("id", uid).single(),
-      supabase.from("addresses").select("line1, city, pincode, state").eq("profile_id", uid).maybeSingle(),
+      supabase.from("addresses").select("line1, line2, city, pincode, state").eq("profile_id", uid).maybeSingle(),
     ])
     setProfile(p ? { name: p.name ?? "", phone: p.phone ?? "", email: p.email ?? "" } : null)
-    setAddress(a ? { line1: a.line1, city: a.city ?? "", pincode: a.pincode, state: a.state ?? "" } : null)
+    setAddress(
+      a ? { line1: a.line1, line2: a.line2 ?? "", city: a.city ?? "", pincode: a.pincode, state: a.state ?? "" } : null
+    )
   }
 
   useEffect(() => {
@@ -103,7 +108,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const signUp: AccountContextType["signUp"] = async ({ email, password, name, phone }) => {
+  const signUp: AccountContextType["signUp"] = async ({ email, password, name, phone, address }) => {
+    const phoneCheck = await fetch("/api/auth/phone-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    })
+    if (phoneCheck.ok) {
+      return "An account already exists for this number — please log in instead."
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -115,8 +129,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // metadata above — this update just covers the (rare) race where the
       // trigger's row isn't committed yet yet by the time this runs.
       await supabase.from("profiles").update({ name, phone }).eq("id", data.user.id)
+      await supabase.from("addresses").upsert({ profile_id: data.user.id, ...address }, { onConflict: "profile_id" })
       setUserId(data.user.id)
       setProfile({ name, phone, email })
+      setAddress(address)
       await mergeGuestCartToAccount(supabase, data.user.id)
     }
     return null
@@ -127,6 +143,31 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (error) return error.message
     if (data.user) await mergeGuestCartToAccount(supabase, data.user.id)
     return null
+  }
+
+  // Phone isn't a Supabase Auth identifier, so this resolves phone -> email
+  // via the service-role-backed lookup route first, then signs in as usual.
+  const logInWithPhone: AccountContextType["logInWithPhone"] = async ({ phone, password }) => {
+    const res = await fetch("/api/auth/phone-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      return body.error ?? "No account found for this number"
+    }
+    const { email } = await res.json()
+    return logIn({ email, password })
+  }
+
+  const checkPhoneExists = async (phone: string): Promise<boolean> => {
+    const res = await fetch("/api/auth/phone-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    })
+    return res.ok
   }
 
   const logout = async () => {
@@ -163,6 +204,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         hydrated,
         signUp,
         logIn,
+        logInWithPhone,
+        checkPhoneExists,
         logout,
         updateProfile,
         saveAddress,
