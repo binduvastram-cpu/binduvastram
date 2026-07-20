@@ -8,12 +8,15 @@ import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
+import { useOffers } from "@/components/boty/offers-store"
+import { computeSalePrice } from "@/lib/offers"
 import { formatPrice } from "@/lib/format"
 
 export default function WishlistPage() {
   const { ids, toggleWishlist } = useWishlist()
   const { addItem } = useCart()
   const { products } = useProducts()
+  const { offers } = useOffers()
 
   const wishlistedProducts = products.filter((product) => ids.includes(product.id))
 
@@ -21,7 +24,7 @@ export default function WishlistPage() {
     <main className="min-h-screen">
       <Header />
 
-      <div className="pt-28 pb-20">
+      <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h1 className="font-serif text-4xl md:text-5xl text-foreground mb-4 text-balance">Your Wishlist</h1>
           <p className="text-muted-foreground mb-12">
@@ -41,7 +44,9 @@ export default function WishlistPage() {
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {wishlistedProducts.map((product) => (
+              {wishlistedProducts.map((product) => {
+                const applied = computeSalePrice(product, offers)
+                return (
                 <div key={product.id} className="bg-card rounded-xl sm:rounded-3xl overflow-hidden boty-shadow">
                   <Link href={`/product/${product.id}`} className="block relative aspect-square bg-muted">
                     <Image
@@ -69,12 +74,16 @@ export default function WishlistPage() {
                       <h3 className="font-serif text-lg text-foreground mb-1">{product.name}</h3>
                     </Link>
                     <div className="flex items-center gap-2 mb-4">
-                      <span className="font-medium text-foreground">{formatPrice(product.price)}</span>
-                      {product.mrp && (
+                      <span className="font-medium text-foreground">
+                        {formatPrice(applied ? applied.salePrice : product.price)}
+                      </span>
+                      {applied ? (
+                        <span className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span>
+                      ) : product.mrp ? (
                         <span className="text-sm text-muted-foreground line-through">
                           {formatPrice(product.mrp)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -83,7 +92,7 @@ export default function WishlistPage() {
                           id: product.id,
                           name: product.name,
                           description: product.tagline ?? product.description,
-                          price: product.price,
+                          price: applied ? applied.salePrice : product.price,
                           image: product.images[0],
                         })
                       }
@@ -94,7 +103,8 @@ export default function WishlistPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

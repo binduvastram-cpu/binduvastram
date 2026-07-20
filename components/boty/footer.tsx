@@ -2,15 +2,12 @@
 
 import Link from "next/link"
 import { Instagram, MessageCircle } from "lucide-react"
-import { categories } from "@/lib/products"
+import { useCategories } from "./categories-store"
 
-const footerLinks = {
-  shop: categories.map((category) => ({
-    name: category.label,
-    href: `/shop?category=${category.value}`,
-  })),
+const staticFooterLinks = {
   about: [
     { name: "Our Story", href: "/about" },
+    { name: "Offers", href: "/offers" },
     { name: "Size Guide", href: "/size-guide" },
     { name: "Return & Refund Policy", href: "/returns" },
     { name: "Virtual Shopping", href: "/virtual-shopping" },
@@ -23,6 +20,15 @@ const footerLinks = {
 }
 
 export function Footer() {
+  const { categories } = useCategories()
+  const footerLinks = {
+    shop: categories.map((category) => ({
+      name: category.label,
+      href: `/shop?category=${category.value}`,
+    })),
+    ...staticFooterLinks,
+  }
+
   return (
     <footer className="bg-card pt-20 pb-10 relative overflow-hidden">
       {/* Giant Background Text */}

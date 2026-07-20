@@ -1,14 +1,19 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
 import { ShoppingBag, Heart } from "lucide-react"
 import { useCart } from "./cart-context"
 import { useWishlist } from "./wishlist-context"
 import { useProducts } from "./products-store"
+import { useOrders } from "./orders-store"
 import { SwipeableCardImage } from "./swipeable-card-image"
 import type { Product } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
+import { computeBadge, isNewArrival, isOutOfStock } from "@/lib/product-tags"
+import { computeDemandRanking, displayBoughtCount, realSoldQuantity } from "@/lib/social-proof"
+import { useOffers } from "./offers-store"
+import { computeSalePrice, discountLabel } from "@/lib/offers"
 
 type Tab = "new-arrivals" | "best-sellers"
 
@@ -26,14 +31,17 @@ export function ProductGrid() {
   const headerRef = useRef<HTMLDivElement>(null)
   const { addItem } = useCart()
   const { products } = useProducts()
+  const { offers } = useOffers()
+  const { orders } = useOrders()
   const activeProducts = products.filter((product) => product.isActive !== false)
+  const rankingMap = useMemo(() => computeDemandRanking(products, orders), [products, orders])
 
   const visibleProducts = (
     selectedTab === "new-arrivals"
-      ? activeProducts.filter(
-          (product) => product.badge === "New" || (product.newArrivalUntil && new Date(product.newArrivalUntil) > new Date())
-        )
-      : activeProducts.filter((product) => product.badge === "Bestseller")
+      ? activeProducts.filter(isNewArrival)
+      : activeProducts
+          .filter((product) => rankingMap[product.id])
+          .sort((a, b) => realSoldQuantity(b.id, orders) - realSoldQuantity(a.id, orders))
   ).slice(0, 8)
 
   const handleTabChange = (tab: Tab) => {
@@ -138,6 +146,7 @@ export function ProductGrid() {
             <ProductCard
               key={`${selectedTab}-${product.id}`}
               product={product}
+              rank={rankingMap[product.id]}
               index={index}
               isVisible={isVisible && !isTransitioning}
               onAddToCart={() =>
@@ -145,7 +154,7 @@ export function ProductGrid() {
                   id: product.id,
                   name: product.name,
                   description: product.tagline ?? product.description,
-                  price: product.price,
+                  price: computeSalePrice(product, offers)?.salePrice ?? product.price,
                   image: product.images[0],
                 })
               }
@@ -169,18 +178,24 @@ export function ProductGrid() {
 
 function ProductCard({
   product,
+  rank,
   index,
   isVisible,
   onAddToCart,
 }: {
   product: Product
+  rank?: "Bestseller" | "Most Wanted"
   index: number
   isVisible: boolean
   onAddToCart: () => void
 }) {
   const { isWishlisted, toggleWishlist } = useWishlist()
+  const { offers } = useOffers()
+  const { orders } = useOrders()
   const wishlisted = isWishlisted(product.id)
-  const likeCount = (product.likeCountBase ?? 0) + (wishlisted ? 1 : 0)
+  const boughtCount = displayBoughtCount(product, orders)
+  const applied = computeSalePrice(product, offers)
+  const badgeText = isOutOfStock(product) ? "Out of Stock" : applied ? discountLabel(applied.offer) : computeBadge(product, rank)
 
   return (
     <Link
@@ -200,17 +215,19 @@ function ProductCard({
             className="object-cover boty-transition group-hover:scale-105"
           />
           {/* Badge */}
-          {product.badge && (
+          {badgeText && (
             <span
               className={`absolute top-2 left-2 sm:top-4 sm:left-4 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs tracking-wide bg-white text-black ${
-                product.badge === "Sale"
+                applied || badgeText === "Sale"
                   ? "bg-destructive/10 text-destructive"
-                  : product.badge === "New"
+                  : badgeText === "New"
                   ? "bg-primary/10 text-primary"
+                  : badgeText === "Out of Stock"
+                  ? "bg-muted text-muted-foreground"
                   : "bg-accent/10 text-accent"
               }`}
             >
-              {product.badge}
+              {badgeText}
             </span>
           )}
           {/* Wishlist toggle */}
@@ -248,18 +265,18 @@ function ProductCard({
           <h3 className="font-serif text-sm sm:text-lg text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
           <p className="hidden sm:block text-sm text-muted-foreground mb-3">{product.tagline ?? product.description}</p>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="text-sm sm:text-base font-medium text-foreground">{formatPrice(product.price)}</span>
-            {product.mrp && (
-              <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                {formatPrice(product.mrp)}
-              </span>
-            )}
+            <span className="text-sm sm:text-base font-medium text-foreground">
+              {formatPrice(applied ? applied.salePrice : product.price)}
+            </span>
+            {applied ? (
+              <span className="text-xs sm:text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span>
+            ) : product.mrp ? (
+              <span className="text-xs sm:text-sm text-muted-foreground line-through">{formatPrice(product.mrp)}</span>
+            ) : null}
           </div>
-          {(likeCount > 0 || product.boughtCount) && (
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 flex items-center gap-1">
-              {product.boughtCount ? <span>Bought by {product.boughtCount}</span> : null}
-              {product.boughtCount && likeCount > 0 ? <span>·</span> : null}
-              {likeCount > 0 ? <span className="inline-flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-primary text-primary" />{likeCount}</span> : null}
+          {boughtCount > 0 && (
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              Bought by {boughtCount}
             </p>
           )}
         </div>

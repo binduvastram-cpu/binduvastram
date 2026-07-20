@@ -17,7 +17,7 @@ export default function AccountPage() {
     return (
       <main className="min-h-screen">
         <Header />
-        <div className="pt-28 pb-20" />
+        <div className="pt-28 lg:pt-36 pb-20" />
         <Footer />
       </main>
     )
@@ -26,7 +26,7 @@ export default function AccountPage() {
   return (
     <main className="min-h-screen">
       <Header />
-      <div className="pt-28 pb-20">
+      <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-xl mx-auto px-6 lg:px-8">
           {!profile ? (
             <div className="bg-card rounded-3xl boty-shadow p-8">

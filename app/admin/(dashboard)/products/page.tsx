@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Image from "next/image"
-import { Plus, Pencil, Trash2, Search, Check } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, Check, Copy } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -11,10 +11,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { useProducts } from "@/components/boty/products-store"
-import { categories } from "@/lib/products"
+import { useCategories } from "@/components/boty/categories-store"
+import { useCollections } from "@/components/boty/collections-store"
+import { useAttributes } from "@/components/boty/attributes-store"
 import { IMAGE_LIBRARY } from "@/lib/image-library"
-import type { Product, Category } from "@/lib/types"
+import type { Product } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
+import { isOutOfStock } from "@/lib/product-tags"
+import { generateProductCode } from "@/lib/product-code"
+import { slugify } from "@/lib/saree-collections"
 
 function emptyProduct(): Product {
   return {
@@ -25,34 +30,73 @@ function emptyProduct(): Product {
     price: 0,
     mrp: null,
     images: [],
-    badge: null,
     category: "sarees",
     properties: {},
     stock: 0,
     codAvailable: true,
     estimatedDeliveryDays: [4, 7],
     isActive: true,
+    createdAt: new Date().toISOString(),
   }
 }
 
+type StockFilter = "all" | "in-stock" | "low-stock" | "out-of-stock"
+
 export default function AdminProductsPage() {
   const { products, hydrated, addProduct, updateProduct, deleteProduct } = useProducts()
+  const { categories, hydrated: categoriesHydrated } = useCategories()
+  const { collectionLabel, hydrated: collectionsHydrated } = useCollections()
   const [search, setSearch] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [stockFilter, setStockFilter] = useState<StockFilter>("all")
+  const [priceMin, setPriceMin] = useState("")
+  const [priceMax, setPriceMax] = useState("")
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  if (!hydrated) return null
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return products.filter((p) => {
+      if (q) {
+        const matches =
+          p.name.toLowerCase().includes(q) ||
+          (p.code?.toLowerCase().includes(q) ?? false) ||
+          (p.properties.fabric?.toLowerCase().includes(q) ?? false)
+        if (!matches) return false
+      }
+      if (categoryFilter !== "all" && p.category !== categoryFilter) return false
+      if (priceMin && p.price < Number(priceMin)) return false
+      if (priceMax && p.price > Number(priceMax)) return false
+      if (stockFilter === "out-of-stock" && !isOutOfStock(p)) return false
+      if (stockFilter === "low-stock" && !(p.stock > 0 && p.stock <= 5)) return false
+      if (stockFilter === "in-stock" && p.stock <= 5) return false
+      return true
+    })
+  }, [products, search, categoryFilter, stockFilter, priceMin, priceMax])
 
-  const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+  if (!hydrated || !categoriesHydrated || !collectionsHydrated) return null
 
   const handleSave = (product: Product) => {
     if (isCreating) {
-      addProduct(product)
+      addProduct({ ...product, code: product.code || generateProductCode(product, products) })
     } else {
       updateProduct(product)
     }
     setEditingProduct(null)
+    setIsCreating(false)
+  }
+
+  const handleDuplicate = (product: Product) => {
+    const duplicate: Product = {
+      ...product,
+      id: `product_${Date.now()}`,
+      code: generateProductCode(product, products),
+      name: `${product.name} (Copy)`,
+      createdAt: new Date().toISOString(),
+    }
+    addProduct(duplicate)
+    setEditingProduct(duplicate)
     setIsCreating(false)
   }
 
@@ -76,14 +120,50 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      <div className="relative mb-6 max-w-sm">
-        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="relative max-w-sm flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, code, or fabric..."
+            className="w-full bg-card border border-border/50 rounded-full pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 boty-transition"
+          />
+        </div>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="bg-card border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+        >
+          <option value="all">All Categories</option>
+          {categories.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+        <select
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value as StockFilter)}
+          className="bg-card border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+        >
+          <option value="all">All Stock</option>
+          <option value="in-stock">In Stock</option>
+          <option value="low-stock">Low Stock (≤5)</option>
+          <option value="out-of-stock">Out of Stock</option>
+        </select>
         <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search products..."
-          className="w-full bg-card border border-border/50 rounded-full pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 boty-transition"
+          type="number"
+          value={priceMin}
+          onChange={(e) => setPriceMin(e.target.value)}
+          placeholder="Min ₹"
+          className="w-24 bg-card border border-border/50 rounded-full px-3 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+        />
+        <input
+          type="number"
+          value={priceMax}
+          onChange={(e) => setPriceMax(e.target.value)}
+          placeholder="Max ₹"
+          className="w-24 bg-card border border-border/50 rounded-full px-3 py-2.5 text-sm focus:outline-none focus:border-primary/50"
         />
       </div>
 
@@ -93,6 +173,7 @@ export default function AdminProductsPage() {
           <thead className="bg-background text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-5 py-3">Product</th>
+              <th className="text-left px-5 py-3">Code</th>
               <th className="text-left px-5 py-3">Category</th>
               <th className="text-left px-5 py-3">Price</th>
               <th className="text-left px-5 py-3">Stock</th>
@@ -111,7 +192,11 @@ export default function AdminProductsPage() {
                     <span className="text-foreground font-medium">{product.name}</span>
                   </div>
                 </td>
-                <td className="px-5 py-3 text-muted-foreground capitalize">{product.category.replace("-", " ")}</td>
+                <td className="px-5 py-3 text-muted-foreground font-mono text-xs">{product.code ?? "—"}</td>
+                <td className="px-5 py-3 text-muted-foreground capitalize">
+                  {product.category.replace("-", " ")}
+                  {product.collection && <span className="text-xs"> • {collectionLabel(product.collection)}</span>}
+                </td>
                 <td className="px-5 py-3 text-foreground">{formatPrice(product.price)}</td>
                 <td className="px-5 py-3 text-foreground">{product.stock}</td>
                 <td className="px-5 py-3">
@@ -123,6 +208,9 @@ export default function AdminProductsPage() {
                   <div className="flex items-center justify-end gap-2">
                     <button type="button" onClick={() => { setEditingProduct(product); setIsCreating(false) }} className="p-2 text-muted-foreground hover:text-foreground boty-transition" aria-label="Edit">
                       <Pencil className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => handleDuplicate(product)} className="p-2 text-muted-foreground hover:text-foreground boty-transition" aria-label="Duplicate">
+                      <Copy className="w-4 h-4" />
                     </button>
                     <button type="button" onClick={() => setConfirmDeleteId(product.id)} className="p-2 text-muted-foreground hover:text-destructive boty-transition" aria-label="Delete">
                       <Trash2 className="w-4 h-4" />
@@ -144,7 +232,7 @@ export default function AdminProductsPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground truncate">{product.name}</p>
-              <p className="text-xs text-muted-foreground capitalize mb-1">{product.category.replace("-", " ")}</p>
+              <p className="text-xs text-muted-foreground capitalize mb-1">{product.category.replace("-", " ")} {product.code && `• ${product.code}`}</p>
               <p className="text-sm text-foreground">{formatPrice(product.price)} • Stock: {product.stock}</p>
             </div>
             <div className="flex flex-col items-end justify-between">
@@ -154,6 +242,9 @@ export default function AdminProductsPage() {
               <div className="flex gap-1">
                 <button type="button" onClick={() => { setEditingProduct(product); setIsCreating(false) }} className="p-2 text-muted-foreground" aria-label="Edit">
                   <Pencil className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => handleDuplicate(product)} className="p-2 text-muted-foreground" aria-label="Duplicate">
+                  <Copy className="w-4 h-4" />
                 </button>
                 <button type="button" onClick={() => setConfirmDeleteId(product.id)} className="p-2 text-muted-foreground" aria-label="Delete">
                   <Trash2 className="w-4 h-4" />
@@ -220,6 +311,21 @@ function ProductForm({
 }) {
   const [form, setForm] = useState<Product>(product)
   const [imageUrlInput, setImageUrlInput] = useState("")
+  const { categories } = useCategories()
+  const { families, addItem } = useCollections()
+  const { attributes } = useAttributes()
+  const [addingType, setAddingType] = useState(false)
+  const [newTypeFamily, setNewTypeFamily] = useState<string>("")
+  const [newTypeGroup, setNewTypeGroup] = useState<string>("")
+  const [newTypeLabel, setNewTypeLabel] = useState("")
+
+  // Sum per-size stock automatically once sizes are set — keeps the two
+  // numbers from ever drifting apart instead of trusting a second manual entry.
+  useEffect(() => {
+    if (!form.sizes || form.sizes.length === 0) return
+    const total = form.sizes.reduce((sum, size) => sum + (form.sizeStock?.[size] ?? 0), 0)
+    if (total !== form.stock) setForm((f) => ({ ...f, stock: total }))
+  }, [form.sizes, form.sizeStock])
 
   const toggleImage = (src: string) => {
     setForm((f) => ({
@@ -251,16 +357,27 @@ function ProductForm({
           />
         </div>
         <div>
+          <label className="text-sm font-medium text-foreground mb-2 block">Product Code</label>
+          <input
+            disabled
+            value={form.code ?? "Auto-generated on save"}
+            className="w-full bg-muted border border-border/50 rounded-full px-4 py-2.5 text-sm text-muted-foreground"
+          />
+        </div>
+        <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Category</label>
           <select
             value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value as Category })}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
           >
             {categories.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
           </select>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Don't see the right category? <a href="/admin/categories" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Manage categories</a>
+          </p>
         </div>
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Price (₹)</label>
@@ -281,28 +398,25 @@ function ProductForm({
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">Stock Quantity</label>
+          <label className="text-sm font-medium text-foreground mb-2 block">
+            Stock Quantity {form.sizes && form.sizes.length > 0 && <span className="text-muted-foreground font-normal">(auto-summed from sizes below)</span>}
+          </label>
           <input
             type="number"
+            disabled={!!(form.sizes && form.sizes.length > 0)}
             value={form.stock}
             onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
-            className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+            className={`w-full border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 ${
+              form.sizes && form.sizes.length > 0 ? "bg-muted text-muted-foreground" : "bg-background"
+            }`}
           />
         </div>
-        <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">Badge</label>
-          <select
-            value={form.badge ?? ""}
-            onChange={(e) => setForm({ ...form, badge: (e.target.value || null) as Product["badge"] })}
-            className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-          >
-            <option value="">None</option>
-            <option value="New">New</option>
-            <option value="Sale">Sale</option>
-            <option value="Bestseller">Bestseller</option>
-          </select>
-        </div>
       </div>
+
+      <p className="text-xs text-muted-foreground -mt-2">
+        "Out of Stock", "Limited Stock", "New", "Bestseller" and "Most Wanted" badges are all shown automatically
+        (from stock, listing age, and real order volume) — there's nothing to tag by hand.
+      </p>
 
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
@@ -314,61 +428,186 @@ function ProductForm({
         />
       </div>
 
+      {form.category === "sarees" && (
+        <div>
+          <label className="text-sm font-medium text-foreground mb-2 block">Saree Collection</label>
+          <select
+            value={form.collection ?? ""}
+            onChange={(e) => setForm({ ...form, collection: e.target.value || undefined })}
+            className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+          >
+            <option value="">None</option>
+            {Object.entries(families).map(([familySlug, family]) => (
+              <optgroup key={familySlug} label={family.label}>
+                <option value={familySlug}>All {family.label}</option>
+                {family.groups
+                  ? Object.entries(family.groups).flatMap(([groupSlug, group]) => [
+                      <option key={groupSlug} value={groupSlug}>{group.label} (all)</option>,
+                      ...group.items.map((item) => {
+                        const slug = slugify(item)
+                        return <option key={slug} value={slug}>{`— ${item}`}</option>
+                      }),
+                    ])
+                  : (family.items ?? []).map((item) => {
+                      const slug = slugify(item)
+                      return <option key={slug} value={slug}>{item}</option>
+                    })}
+              </optgroup>
+            ))}
+          </select>
+
+          {!addingType ? (
+            <button
+              type="button"
+              onClick={() => {
+                setAddingType(true)
+                setNewTypeFamily(Object.keys(families)[0] ?? "")
+                setNewTypeGroup("")
+              }}
+              className="mt-2 text-xs text-primary underline"
+            >
+              + Add new saree type
+            </button>
+          ) : (
+            <div className="mt-3 bg-muted/50 rounded-2xl p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={newTypeFamily}
+                  onChange={(e) => { setNewTypeFamily(e.target.value); setNewTypeGroup("") }}
+                  className="bg-background border border-border/50 rounded-full px-3 py-1.5 text-xs focus:outline-none focus:border-primary/50"
+                >
+                  {Object.entries(families).map(([slug, f]) => (
+                    <option key={slug} value={slug}>{f.label}</option>
+                  ))}
+                </select>
+                {families[newTypeFamily]?.groups && (
+                  <select
+                    value={newTypeGroup}
+                    onChange={(e) => setNewTypeGroup(e.target.value)}
+                    className="bg-background border border-border/50 rounded-full px-3 py-1.5 text-xs focus:outline-none focus:border-primary/50"
+                  >
+                    <option value="">(no group)</option>
+                    {Object.entries(families[newTypeFamily].groups ?? {}).map(([slug, g]) => (
+                      <option key={slug} value={slug}>{g.label}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={newTypeLabel}
+                  onChange={(e) => setNewTypeLabel(e.target.value)}
+                  placeholder="New type name, e.g. Uppada Silk"
+                  className="flex-1 bg-background border border-border/50 rounded-full px-3 py-1.5 text-xs focus:outline-none focus:border-primary/50"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newTypeLabel.trim()) return
+                    const slug = addItem(newTypeFamily, newTypeGroup || null, newTypeLabel.trim())
+                    setForm((f) => ({ ...f, collection: slug }))
+                    setNewTypeLabel("")
+                    setAddingType(false)
+                  }}
+                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs font-medium whitespace-nowrap"
+                >
+                  Add &amp; Select
+                </button>
+                <button type="button" onClick={() => setAddingType(false)} className="px-3 py-1.5 text-xs text-muted-foreground">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Fabric</label>
-          <input
+          <select
             value={form.properties.fabric ?? ""}
-            onChange={(e) => setForm({ ...form, properties: { ...form.properties, fabric: e.target.value } })}
+            onChange={(e) => setForm({ ...form, properties: { ...form.properties, fabric: e.target.value || undefined } })}
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-          />
+          >
+            <option value="">None</option>
+            {attributes.fabric.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </div>
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Work</label>
-          <input
+          <select
             value={form.properties.work ?? ""}
-            onChange={(e) => setForm({ ...form, properties: { ...form.properties, work: e.target.value } })}
+            onChange={(e) => setForm({ ...form, properties: { ...form.properties, work: e.target.value || undefined } })}
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-          />
+          >
+            <option value="">None</option>
+            {attributes.work.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </div>
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Color</label>
-          <input
+          <select
             value={form.properties.color ?? ""}
-            onChange={(e) => setForm({ ...form, properties: { ...form.properties, color: e.target.value } })}
+            onChange={(e) => setForm({ ...form, properties: { ...form.properties, color: e.target.value || undefined } })}
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-          />
+          >
+            <option value="">None</option>
+            {attributes.color.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </div>
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Occasion</label>
-          <input
+          <select
             value={form.properties.occasion ?? ""}
-            onChange={(e) => setForm({ ...form, properties: { ...form.properties, occasion: e.target.value } })}
+            onChange={(e) => setForm({ ...form, properties: { ...form.properties, occasion: e.target.value || undefined } })}
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-          />
+          >
+            <option value="">None</option>
+            {attributes.occasion.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </div>
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">Material (bags)</label>
-          <input
+          <select
             value={form.properties.material ?? ""}
-            onChange={(e) => setForm({ ...form, properties: { ...form.properties, material: e.target.value } })}
+            onChange={(e) => setForm({ ...form, properties: { ...form.properties, material: e.target.value || undefined } })}
             className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-          />
+          >
+            <option value="">None</option>
+            {attributes.material.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Don't see the right value? <a href="/admin/attributes" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Manage attributes</a>
+      </p>
 
-      {/* Sizes + per-size stock */}
+      {/* Sizes (fixed list, multi-select) + per-size stock */}
       <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Sizes (comma-separated, leave blank if not applicable)</label>
-        <input
-          value={(form.sizes ?? []).join(", ")}
-          onChange={(e) => {
-            const sizes = e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-            setForm({ ...form, sizes: sizes.length > 0 ? sizes : undefined })
-          }}
-          placeholder="S, M, L, XL"
-          className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-        />
+        <label className="text-sm font-medium text-foreground mb-2 block">Sizes (leave none selected if not applicable)</label>
+        <div className="flex flex-wrap gap-2">
+          {attributes.size.map((size) => {
+            const selected = (form.sizes ?? []).includes(size)
+            return (
+              <button
+                key={size}
+                type="button"
+                onClick={() => {
+                  const current = form.sizes ?? []
+                  const sizes = selected ? current.filter((s) => s !== size) : [...current, size]
+                  setForm({ ...form, sizes: sizes.length > 0 ? sizes : undefined })
+                }}
+                className={`px-4 py-1.5 rounded-full text-sm border boty-transition ${
+                  selected ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border/50 text-foreground hover:border-primary/50"
+                }`}
+              >
+                {size}
+              </button>
+            )
+          })}
+        </div>
         {form.sizes && form.sizes.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3">
             {form.sizes.map((size) => (
@@ -390,49 +629,20 @@ function ProductForm({
 
       {/* Social proof (Section 5) */}
       <div className="border-t border-border/50 pt-5">
-        <p className="text-sm font-medium text-foreground mb-3">Social Proof</p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Display Mode</label>
-            <select
-              value={form.socialProofMode ?? "manual"}
-              onChange={(e) => setForm({ ...form, socialProofMode: e.target.value as "manual" | "real" })}
-              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-            >
-              <option value="manual">Manual (admin-set number)</option>
-              <option value="real">Real (from actual orders)</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Bought Count (manual)</label>
-            <input
-              type="number"
-              value={form.boughtCount ?? ""}
-              onChange={(e) => setForm({ ...form, boughtCount: e.target.value ? Number(e.target.value) : undefined })}
-              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Like Count Base</label>
-            <input
-              type="number"
-              value={form.likeCountBase ?? ""}
-              onChange={(e) => setForm({ ...form, likeCountBase: e.target.value ? Number(e.target.value) : undefined })}
-              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Sample Locations (comma-separated)</label>
-            <input
-              value={(form.sampleLocations ?? []).join(", ")}
-              onChange={(e) => {
-                const locations = e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                setForm({ ...form, sampleLocations: locations.length > 0 ? locations : undefined })
-              }}
-              placeholder="Bangalore, Chennai"
-              className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
-            />
-          </div>
+        <p className="text-sm font-medium text-foreground mb-1">Social Proof</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          "New" is automatic from listing age, and "Bestseller"/"Most Wanted" badges plus the shopper counts below are
+          computed from real orders once they exist. Bought Count is the only manual number — a baseline for a new
+          listing that real sales add to automatically, never replace.
+        </p>
+        <div className="max-w-xs">
+          <label className="text-xs text-muted-foreground mb-2 block">Bought Count (baseline)</label>
+          <input
+            type="number"
+            value={form.boughtCount ?? ""}
+            onChange={(e) => setForm({ ...form, boughtCount: e.target.value ? Number(e.target.value) : undefined })}
+            className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+          />
         </div>
       </div>
 
@@ -452,15 +662,6 @@ function ProductForm({
             onChange={(e) => setForm({ ...form, codAvailable: e.target.checked })}
           />
           COD Available
-        </label>
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <span>New Arrival Until</span>
-          <input
-            type="date"
-            value={form.newArrivalUntil?.slice(0, 10) ?? ""}
-            onChange={(e) => setForm({ ...form, newArrivalUntil: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-            className="bg-background border border-border/50 rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-primary/50"
-          />
         </label>
       </div>
 
@@ -504,6 +705,16 @@ function ProductForm({
         {form.images.length > 0 && (
           <p className="text-xs text-muted-foreground mt-2">{form.images.length} image(s) selected</p>
         )}
+      </div>
+
+      <div>
+        <label className="text-sm font-medium text-foreground mb-2 block">Product Video URL (optional)</label>
+        <input
+          value={form.videoUrl ?? ""}
+          onChange={(e) => setForm({ ...form, videoUrl: e.target.value || undefined })}
+          placeholder="https://... (shown as an extra slide in the product gallery)"
+          className="w-full bg-background border border-border/50 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50"
+        />
       </div>
 
       <div className="flex gap-3 pt-2">

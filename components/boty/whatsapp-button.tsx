@@ -1,11 +1,16 @@
 "use client"
 
+import { usePathname } from "next/navigation"
+
 const WHATSAPP_NUMBER = "919141718191"
 const DEFAULT_MESSAGE =
   "Hello Bindu Vastram! I came across your collection and would love to know more — could you share details on pricing, fabric, and availability? Looking forward to hearing from you."
 
 export function WhatsAppButton() {
+  const pathname = usePathname()
   const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(DEFAULT_MESSAGE)}`
+
+  if (pathname?.startsWith("/admin")) return null
 
   return (
     <a

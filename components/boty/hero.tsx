@@ -164,7 +164,7 @@ export function Hero() {
       </div>
 
       {/* Left Content — fades in only after the center dialogue has fully faded out, then stays static */}
-      <div className="relative z-10 w-full pt-20">
+      <div className="relative z-10 w-full pt-20 lg:pt-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div
             className={`w-full lg:max-w-lg transition-all duration-700 ease-out ${

@@ -6,7 +6,7 @@ import { IndianRupee, ShoppingBag, AlertTriangle, TrendingUp } from "lucide-reac
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { useOrders } from "@/components/boty/orders-store"
 import { useProducts } from "@/components/boty/products-store"
-import { categories } from "@/lib/products"
+import { useCategories } from "@/components/boty/categories-store"
 import { formatPrice } from "@/lib/format"
 
 function StatTile({ icon: Icon, label, value }: { icon: typeof IndianRupee; label: string; value: string }) {
@@ -24,6 +24,7 @@ function StatTile({ icon: Icon, label, value }: { icon: typeof IndianRupee; labe
 export default function AdminOverviewPage() {
   const { orders, hydrated: ordersHydrated } = useOrders()
   const { products, hydrated: productsHydrated } = useProducts()
+  const { categories, hydrated: categoriesHydrated } = useCategories()
 
   const revenue = useMemo(
     () => orders.filter((o) => o.orderStatus !== "Cancelled").reduce((sum, o) => sum + o.total, 0),
@@ -78,7 +79,7 @@ export default function AdminOverviewPage() {
     return categories.map((c) => ({ category: c.label, revenue: totals.get(c.value) ?? 0 }))
   }, [orders, products])
 
-  if (!ordersHydrated || !productsHydrated) return null
+  if (!ordersHydrated || !productsHydrated || !categoriesHydrated) return null
 
   return (
     <div>

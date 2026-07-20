@@ -11,6 +11,10 @@ import { AccountProvider } from '@/components/boty/account-context'
 import { ReviewsProvider } from '@/components/boty/reviews-store'
 import { LeadsProvider } from '@/components/boty/leads-store'
 import { VirtualShoppingProvider } from '@/components/boty/virtual-shopping-store'
+import { OffersProvider } from '@/components/boty/offers-store'
+import { CategoriesProvider } from '@/components/boty/categories-store'
+import { CollectionsProvider } from '@/components/boty/collections-store'
+import { AttributesProvider } from '@/components/boty/attributes-store'
 import { WhatsAppButton } from '@/components/boty/whatsapp-button'
 import { DiscountPopup } from '@/components/boty/discount-popup'
 import './globals.css'
@@ -51,23 +55,31 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${playfairDisplay.variable} font-sans antialiased`}>
         <CartProvider>
           <WishlistProvider>
-            <ProductsProvider>
-              <OrdersProvider>
-                <CustomersProvider>
-                  <AccountProvider>
-                    <ReviewsProvider>
-                      <LeadsProvider>
-                        <VirtualShoppingProvider>
-                          {children}
-                          <WhatsAppButton />
-                          <DiscountPopup />
-                        </VirtualShoppingProvider>
-                      </LeadsProvider>
-                    </ReviewsProvider>
-                  </AccountProvider>
-                </CustomersProvider>
-              </OrdersProvider>
-            </ProductsProvider>
+            <CategoriesProvider>
+              <CollectionsProvider>
+              <AttributesProvider>
+                <ProductsProvider>
+                  <OrdersProvider>
+                    <CustomersProvider>
+                      <AccountProvider>
+                        <ReviewsProvider>
+                          <LeadsProvider>
+                            <VirtualShoppingProvider>
+                              <OffersProvider>
+                                {children}
+                                <WhatsAppButton />
+                                <DiscountPopup />
+                              </OffersProvider>
+                            </VirtualShoppingProvider>
+                          </LeadsProvider>
+                        </ReviewsProvider>
+                      </AccountProvider>
+                    </CustomersProvider>
+                  </OrdersProvider>
+                </ProductsProvider>
+              </AttributesProvider>
+              </CollectionsProvider>
+            </CategoriesProvider>
           </WishlistProvider>
         </CartProvider>
         <Analytics />

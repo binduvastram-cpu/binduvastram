@@ -7,9 +7,14 @@ export type Category =
   | "handbags"
   | "petticoats"
   | "salwar-suits"
+  | "designer"
+
+// Widened so admin-created categories (arbitrary slugs, see categories-store.tsx)
+// are assignable too, while the built-in literals still autocomplete.
+export type CategoryValue = Category | (string & {})
 
 export interface CategoryInfo {
-  value: Category
+  value: CategoryValue
   label: string
   image: string | null
 }
@@ -27,14 +32,21 @@ export interface ProductProperties {
 
 export interface Product {
   id: string
+  // Human-readable/searchable code, auto-generated from category/collection
+  // at creation time (e.g. "SL001" for a Silk saree, "CO002" for Cotton).
+  // Purely additive — routing/cart/wishlist still key off `id`.
+  code?: string
   name: string
   tagline?: string
   description: string
   price: number
   mrp: number | null
   images: string[]
-  badge: "New" | "Sale" | "Bestseller" | null
-  category: Category
+  videoUrl?: string
+  // Only meaningful when category === "sarees" — the most specific saree
+  // collection slug known for this product (see lib/saree-collections.ts).
+  collection?: string
+  category: CategoryValue
   properties: ProductProperties
   sizes?: string[]
   // Per-size stock; a size with 0 (or missing when `sizes` is set) is disabled in the selector.
@@ -44,15 +56,14 @@ export interface Product {
   estimatedDeliveryDays: [number, number]
   // Defaults to true when omitted (all seed products are active).
   isActive?: boolean
-  // New Arrivals control — shown while `badge === "New"` OR until this date if set.
-  newArrivalUntil?: string
-  // Social proof (Section 5) — hybrid, defaults to "manual" since a new store
-  // has little/no real order history yet. Admin can flip to "real" per product
-  // once genuine order volume exists.
-  socialProofMode?: "manual" | "real"
+  // Stamped once at creation, never edited — every "New"/"Bestseller"/
+  // "Most Wanted" badge is derived live from this plus real order data
+  // (see lib/product-tags.ts and lib/social-proof.ts) instead of a manual flag.
+  createdAt: string
+  // Manual baseline an admin can seed before a product has real sales history;
+  // real order quantities are added to this automatically as they come in
+  // (see lib/social-proof.ts#displayBoughtCount) instead of replacing it.
   boughtCount?: number
-  sampleLocations?: string[]
-  likeCountBase?: number
 }
 
 export interface Review {
@@ -127,5 +138,20 @@ export interface Order {
   paymentMethod: "COD"
   paymentStatus: "Pending" | "Paid on Delivery"
   orderStatus: OrderStatus
+  createdAt: string
+}
+
+export interface Offer {
+  id: string
+  title: string
+  description?: string
+  scope: "product" | "category"
+  // A productId when scope is "product", a Category value when scope is "category".
+  targetId: string
+  discountType: "percent" | "flat"
+  discountValue: number
+  startDate?: string
+  endDate?: string
+  isActive: boolean
   createdAt: string
 }

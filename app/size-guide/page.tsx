@@ -26,7 +26,7 @@ export default function SizeGuidePage() {
     <main className="min-h-screen">
       <Header />
 
-      <div className="pt-28 pb-20">
+      <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16">
             <span className="text-sm tracking-[0.3em] uppercase text-primary mb-4 block">

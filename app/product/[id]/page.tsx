@@ -11,11 +11,15 @@ import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
 import { useReviews } from "@/components/boty/reviews-store"
 import { useAccount } from "@/components/boty/account-context"
+import { useOrders } from "@/components/boty/orders-store"
 import { ProductGallery } from "@/components/boty/product-gallery"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { sizeChartForCategory } from "@/lib/size-charts"
 import { formatPrice } from "@/lib/format"
 import { getGuestId } from "@/lib/guest-id"
+import { useOffers } from "@/components/boty/offers-store"
+import { computeSalePrice, discountLabel } from "@/lib/offers"
+import { displayBoughtCount, realSampleLocations } from "@/lib/social-proof"
 
 type AccordionSection = "details" | "fabricCare" | "delivery"
 
@@ -30,6 +34,9 @@ export default function ProductPage() {
   const { isWishlisted, toggleWishlist } = useWishlist()
   const { reviews, addReview } = useReviews()
   const { profile, isLoggedIn } = useAccount()
+  const { offers } = useOffers()
+  const { orders } = useOrders()
+  const applied = computeSalePrice(product, offers)
 
   // No size is pre-selected — Section 9a requires an active choice before
   // Add to Cart, not a silently-defaulted one.
@@ -48,7 +55,8 @@ export default function ProductPage() {
   const averageRating = productReviews.length > 0
     ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length
     : null
-  const likeCount = (product.likeCountBase ?? 0) + (isWishlisted(product.id) ? 1 : 0)
+  const boughtCount = displayBoughtCount(product, orders)
+  const sampleLocations = realSampleLocations(product.id, orders)
   const sizeChart = sizeChartForCategory(product.category)
 
   useEffect(() => {
@@ -79,7 +87,7 @@ export default function ProductPage() {
         id: product.id,
         name: product.name,
         description: product.tagline ?? product.description,
-        price: product.price,
+        price: applied ? applied.salePrice : product.price,
         image: product.images[0],
       })
     }
@@ -171,7 +179,7 @@ export default function ProductPage() {
     <main className="min-h-screen">
       <Header />
 
-      <div className="pt-28 pb-28 lg:pb-20">
+      <div className="pt-28 lg:pt-36 pb-28 lg:pb-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           {/* Back Link */}
           <Link
@@ -184,7 +192,7 @@ export default function ProductPage() {
 
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
             {/* Product Image Gallery — swipeable on touch, arrows/thumbnails on desktop */}
-            <ProductGallery images={product.images} alt={product.name} />
+            <ProductGallery images={product.images} videoUrl={product.videoUrl} alt={product.name} />
 
             {/* Product Info */}
             <div className="flex flex-col">
@@ -231,21 +239,13 @@ export default function ProductPage() {
                   <p className="text-sm text-muted-foreground mb-4">No reviews yet — be the first to review this product.</p>
                 )}
 
-                {/* Social proof */}
-                {(product.boughtCount || likeCount > 0) && (
+                {/* Social proof — real order data once it exists, plus the manual baseline */}
+                {boughtCount > 0 && (
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-sm text-muted-foreground">
-                    {product.boughtCount && (
-                      <span>
-                        Bought by {product.boughtCount} people
-                        {product.sampleLocations && product.sampleLocations.length > 0 ? `, recently from ${product.sampleLocations[0]}` : ""}
-                      </span>
-                    )}
-                    {likeCount > 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <Heart className="w-3.5 h-3.5 fill-primary text-primary" />
-                        {likeCount} liked this
-                      </span>
-                    )}
+                    <span>
+                      Bought by {boughtCount} people
+                      {sampleLocations.length > 0 ? `, recently from ${sampleLocations[0]}` : ""}
+                    </span>
                   </div>
                 )}
 
@@ -256,11 +256,20 @@ export default function ProductPage() {
 
               {/* Price */}
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-3xl font-medium text-foreground">{formatPrice(product.price)}</span>
-                {product.mrp && (
-                  <span className="text-xl text-muted-foreground line-through">
-                    {formatPrice(product.mrp)}
-                  </span>
+                <span className="text-3xl font-medium text-foreground">
+                  {formatPrice(applied ? applied.salePrice : product.price)}
+                </span>
+                {applied ? (
+                  <>
+                    <span className="text-xl text-muted-foreground line-through">{formatPrice(product.price)}</span>
+                    <span className="text-sm font-medium text-destructive">{discountLabel(applied.offer)}</span>
+                  </>
+                ) : (
+                  product.mrp && (
+                    <span className="text-xl text-muted-foreground line-through">
+                      {formatPrice(product.mrp)}
+                    </span>
+                  )
                 )}
               </div>
 
@@ -542,11 +551,17 @@ export default function ProductPage() {
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex-shrink-0">
-          <p className="text-lg font-medium text-foreground leading-none">{formatPrice(product.price)}</p>
-          {product.mrp && (
-            <p className="text-xs text-muted-foreground line-through leading-none mt-1">
-              {formatPrice(product.mrp)}
-            </p>
+          <p className="text-lg font-medium text-foreground leading-none">
+            {formatPrice(applied ? applied.salePrice : product.price)}
+          </p>
+          {applied ? (
+            <p className="text-xs text-muted-foreground line-through leading-none mt-1">{formatPrice(product.price)}</p>
+          ) : (
+            product.mrp && (
+              <p className="text-xs text-muted-foreground line-through leading-none mt-1">
+                {formatPrice(product.mrp)}
+              </p>
+            )
           )}
         </div>
         <button

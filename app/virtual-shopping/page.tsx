@@ -32,7 +32,7 @@ export default function VirtualShoppingPage() {
     <main className="min-h-screen">
       <Header />
 
-      <div className="pt-28 pb-20">
+      <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-10">
             <div className="w-14 h-14 rounded-full bg-card flex items-center justify-center mb-4 mx-auto">

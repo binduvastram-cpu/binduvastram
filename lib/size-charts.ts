@@ -38,6 +38,13 @@ export const SIZE_CHARTS: Partial<Record<Category, SizeChartRow[]>> = {
     { size: "XL", bust: "40 in / 102 cm", waist: "34 in / 86 cm" },
     { size: "XXL", bust: "42 in / 107 cm", waist: "36 in / 91 cm" },
   ],
+  designer: [
+    { size: "S", bust: "34 in / 86 cm", waist: "28 in / 71 cm" },
+    { size: "M", bust: "36 in / 91 cm", waist: "30 in / 76 cm" },
+    { size: "L", bust: "38 in / 97 cm", waist: "32 in / 81 cm" },
+    { size: "XL", bust: "40 in / 102 cm", waist: "34 in / 86 cm" },
+    { size: "XXL", bust: "42 in / 107 cm", waist: "36 in / 91 cm" },
+  ],
   "womens-wear": [
     { size: "S", bust: "34 in / 86 cm", waist: "28 in / 71 cm" },
     { size: "M", bust: "36 in / 91 cm", waist: "30 in / 76 cm" },
@@ -46,6 +53,6 @@ export const SIZE_CHARTS: Partial<Record<Category, SizeChartRow[]>> = {
   ],
 }
 
-export function sizeChartForCategory(category: Category): SizeChartRow[] | undefined {
-  return SIZE_CHARTS[category]
+export function sizeChartForCategory(category: string): SizeChartRow[] | undefined {
+  return SIZE_CHARTS[category as Category]
 }

@@ -3,9 +3,10 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Shirt } from "lucide-react"
-import { categories } from "@/lib/products"
+import { useCategories } from "./categories-store"
 
 export function CategoryGrid() {
+  const { categories } = useCategories()
   return (
     <section className="py-20 bg-background">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">

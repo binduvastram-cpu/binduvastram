@@ -9,16 +9,21 @@ import { Footer } from "@/components/boty/footer"
 import { useCart } from "@/components/boty/cart-context"
 import { useWishlist } from "@/components/boty/wishlist-context"
 import { useProducts } from "@/components/boty/products-store"
+import { useCategories } from "@/components/boty/categories-store"
+import { useCollections } from "@/components/boty/collections-store"
+import { useOrders } from "@/components/boty/orders-store"
 import { SwipeableCardImage } from "@/components/boty/swipeable-card-image"
-import { categories } from "@/lib/products"
 import { searchProducts } from "@/lib/search"
 import { filtersForCategory } from "@/lib/category-filters"
 import type { Product } from "@/lib/types"
 import { Drawer, DrawerContent, DrawerClose, DrawerTitle, DrawerDescription } from "@/components/ui/drawer"
 import { Slider } from "@/components/ui/slider"
 import { formatPrice } from "@/lib/format"
+import { computeBadge, isNewArrival, isOutOfStock } from "@/lib/product-tags"
+import { computeDemandRanking, displayBoughtCount } from "@/lib/social-proof"
+import { useOffers } from "@/components/boty/offers-store"
+import { computeSalePrice, discountLabel } from "@/lib/offers"
 
-const categoryOptions = [{ value: "all", label: "All" }, ...categories]
 const SLIDER_MAX = 50000
 const SLIDER_STEP = 500
 
@@ -36,6 +41,14 @@ function ShopPageContent() {
   const [selectedCategory, setSelectedCategory] = useState(initialCategory)
   const [priceMin, setPriceMin] = useState(urlPriceMin ? Number(urlPriceMin) : 0)
   const [priceMax, setPriceMax] = useState(urlPriceMax ? Number(urlPriceMax) : Infinity)
+  // Collection/new-arrivals start from the URL (header nav links land here),
+  // but unlike category/price they had no way to ever be cleared — once set,
+  // they silently kept filtering out every product after any other filter
+  // was touched, since they were re-read from the URL on every render instead
+  // of being real state. Now they're state, seeded from the URL, clearable
+  // like everything else.
+  const [selectedCollection, setSelectedCollection] = useState(searchParams.get("collection"))
+  const [newArrivalsOnly, setNewArrivalsOnly] = useState(searchParams.get("filter") === "new-arrivals")
   const [selectedFabrics, setSelectedFabrics] = useState<string[]>([])
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([])
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
@@ -67,11 +80,21 @@ function ShopPageContent() {
     return () => window.removeEventListener("resize", checkViewport)
   }, [])
   const { products } = useProducts()
+  const { categories } = useCategories()
+  const { ancestorsOf, collectionLabel } = useCollections()
+  const { orders } = useOrders()
+  const categoryOptions = useMemo(() => [{ value: "all", label: "All" }, ...categories], [categories])
   const activeProducts = useMemo(() => products.filter((p) => p.isActive !== false), [products])
+  const rankingMap = useMemo(() => computeDemandRanking(products, orders), [products, orders])
 
   // Which filter controls are relevant to the selected category (Section 9 —
   // e.g. no "Fabric" checkboxes on jewellery, no "Fabric"-less on sarees).
-  const activeFilters = useMemo(() => filtersForCategory(selectedCategory), [selectedCategory])
+  // Admin-created categories carry their own filterKinds (chosen at creation
+  // time in /admin/categories) since they have no static CATEGORY_FILTERS entry.
+  const activeFilters = useMemo(() => {
+    const custom = categories.find((c) => c.value === selectedCategory)?.filterKinds
+    return custom ?? filtersForCategory(selectedCategory)
+  }, [selectedCategory, categories])
 
   // Products narrowed by category + search only — used to compute filter
   // option counts and to derive which option values are even relevant.
@@ -100,6 +123,8 @@ function ShopPageContent() {
     if (activeFilters.includes("material") && selectedMaterials.length > 0 && !selectedMaterials.includes(product.properties.material ?? "")) return false
     if (activeFilters.includes("size") && selectedSizes.length > 0 && !selectedSizes.some((s) => (product.sizes ?? []).includes(s))) return false
     if (activeFilters.includes("color") && selectedColors.length > 0 && !selectedColors.includes(product.properties.color ?? "")) return false
+    if (selectedCollection && !(product.collection && ancestorsOf(product.collection).includes(selectedCollection))) return false
+    if (newArrivalsOnly && !isNewArrival(product)) return false
     return true
   })
 
@@ -114,6 +139,8 @@ function ShopPageContent() {
     const max = searchParams.get("price_max")
     setPriceMin(min ? Number(min) : 0)
     setPriceMax(max ? Number(max) : Infinity)
+    setSelectedCollection(searchParams.get("collection"))
+    setNewArrivalsOnly(searchParams.get("filter") === "new-arrivals")
   }, [searchParams])
 
   useEffect(() => {
@@ -156,17 +183,31 @@ function ShopPageContent() {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
   }
 
-  const filterSections = (
+  const handlePriceChange = (min: number, max: number) => { setPriceMin(min); setPriceMax(max) }
+
+  const categoryFilter = (
+    <CategoryFilterGroup
+      options={categoryOptions}
+      selected={selectedCategory}
+      onSelect={(value) => {
+        setSelectedCategory(value)
+        // Switching category manually drops any collection/new-arrivals
+        // narrowing carried over from a header nav link — otherwise it keeps
+        // silently filtering out every product in the newly-picked category.
+        setSelectedCollection(null)
+        setNewArrivalsOnly(false)
+      }}
+      counts={categoryOptions.map((c) =>
+        c.value === "all" ? activeProducts.length : activeProducts.filter((p) => p.category === c.value).length
+      )}
+    />
+  )
+
+  // Fabric/Material/Size/Color only — price moved to its own desktop top-bar
+  // slot (see below), and lives here separately so it can still appear
+  // inside the mobile filter drawer where there's no top-bar room for it.
+  const attributeFilters = (
     <>
-      <CategoryFilterGroup
-        options={categoryOptions}
-        selected={selectedCategory}
-        onSelect={setSelectedCategory}
-        counts={categoryOptions.map((c) =>
-          c.value === "all" ? activeProducts.length : activeProducts.filter((p) => p.category === c.value).length
-        )}
-      />
-      <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onChange={(min, max) => { setPriceMin(min); setPriceMax(max) }} />
       {activeFilters.includes("fabric") && fabricOptions.length > 0 && (
         <CheckboxFilterGroup
           label="Fabric"
@@ -210,7 +251,7 @@ function ShopPageContent() {
     <main className="min-h-screen">
       <Header />
 
-      <div className="pt-28 pb-20">
+      <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-12">
@@ -218,11 +259,35 @@ function ShopPageContent() {
               Our Collection
             </span>
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground mb-4 text-balance">
-              {searchQuery ? `Results for "${searchParams.get("search")}"` : "Shop All Products"}
+              {searchQuery
+                ? `Results for "${searchParams.get("search")}"`
+                : newArrivalsOnly
+                ? "Just Arrived"
+                : selectedCollection
+                ? collectionLabel(selectedCollection)
+                : "Shop All Products"}
             </h1>
             <p className="text-lg text-muted-foreground max-w-md mx-auto">
               Sarees, ethnic wear, jewellery, and more — handpicked for every occasion
             </p>
+            {(selectedCollection || newArrivalsOnly) && (
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <span className="inline-flex items-center gap-2 bg-card border border-border/50 rounded-full pl-4 pr-2 py-1.5 text-sm text-foreground">
+                  {newArrivalsOnly ? "New Arrivals" : collectionLabel(selectedCollection!)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCollection(null)
+                      setNewArrivalsOnly(false)
+                    }}
+                    className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted boty-transition"
+                    aria-label="Clear filter"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="lg:grid lg:grid-cols-[260px_1fr] lg:gap-10">
@@ -231,11 +296,15 @@ function ShopPageContent() {
                 (and the product grid keeps scrolling normally beside it). */}
             <aside className="hidden lg:block lg:sticky lg:top-28 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2">
               <h2 className="font-serif text-2xl text-foreground mb-5">Filter:</h2>
-              <div className="space-y-6">{filterSections}</div>
+              <div className="space-y-6">
+                {categoryFilter}
+                {attributeFilters}
+              </div>
             </aside>
 
             <div className="min-w-0">
-              {/* Filter bar */}
+              {/* Filter bar — price range sits here (desktop only) instead of the
+                  sidebar, with the grid-density selector and count to the right */}
               <div className="flex items-center mb-6 pb-6 border-b border-border/50">
                 <button
                   type="button"
@@ -246,6 +315,9 @@ function ShopPageContent() {
                   <SlidersHorizontal className="w-4 h-4" />
                   Filters
                 </button>
+                <div className="hidden lg:block w-72">
+                  <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onChange={handlePriceChange} compact />
+                </div>
                 <div className="flex items-center gap-4 ml-auto">
                   <div className="flex items-center gap-1 bg-card rounded-full p-1">
                     {([1, 2, 3, 4] as const).map((n) => {
@@ -289,7 +361,11 @@ function ShopPageContent() {
                     </DrawerClose>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 overscroll-contain">{filterSections}</div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6 overscroll-contain">
+                    {categoryFilter}
+                    <PriceRangeFilter priceMin={priceMin} priceMax={priceMax} onChange={handlePriceChange} />
+                    {attributeFilters}
+                  </div>
 
                   <div className="p-6 pt-4 shrink-0 border-t border-border/50">
                     <button
@@ -317,6 +393,7 @@ function ShopPageContent() {
                     <ProductCard
                       key={product.id}
                       product={product}
+                      rank={rankingMap[product.id]}
                       index={index}
                       isVisible={isVisible}
                       compact={compactCard}
@@ -383,10 +460,12 @@ function PriceRangeFilter({
   priceMin,
   priceMax,
   onChange,
+  compact,
 }: {
   priceMin: number
   priceMax: number
   onChange: (min: number, max: number) => void
+  compact?: boolean
 }) {
   const sliderValue: [number, number] = [
     Math.min(priceMin, SLIDER_MAX),
@@ -394,7 +473,7 @@ function PriceRangeFilter({
   ]
 
   return (
-    <div className="border-t border-border/50 pt-6">
+    <div className={compact ? "" : "border-t border-border/50 pt-6"}>
       <p className="text-sm font-medium text-foreground mb-4">Price</p>
       <Slider
         min={0}
@@ -460,11 +539,13 @@ function CheckboxFilterGroup({
 
 function ProductCard({
   product,
+  rank,
   index,
   isVisible,
   compact,
 }: {
   product: Product
+  rank?: "Bestseller" | "Most Wanted"
   index: number
   isVisible: boolean
   compact?: boolean
@@ -472,8 +553,12 @@ function ProductCard({
   const [imageLoaded, setImageLoaded] = useState(false)
   const { addItem } = useCart()
   const { isWishlisted, toggleWishlist } = useWishlist()
+  const { offers } = useOffers()
+  const { orders } = useOrders()
   const wishlisted = isWishlisted(product.id)
-  const likeCount = (product.likeCountBase ?? 0) + (wishlisted ? 1 : 0)
+  const boughtCount = displayBoughtCount(product, orders)
+  const applied = computeSalePrice(product, offers)
+  const badgeText = isOutOfStock(product) ? "Out of Stock" : applied ? discountLabel(applied.offer) : computeBadge(product, rank)
 
   return (
     <Link
@@ -503,17 +588,19 @@ function ProductCard({
             onLoad={() => setImageLoaded(true)}
           />
           {/* Badge */}
-          {product.badge && (
+          {badgeText && (
             <span
               className={`absolute top-2 left-2 sm:top-4 sm:left-4 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs tracking-wide ${
-                product.badge === "Sale"
+                applied || badgeText === "Sale"
                   ? "bg-destructive/10 text-destructive"
-                  : product.badge === "New"
+                  : badgeText === "New"
                   ? "bg-primary/10 text-primary"
+                  : badgeText === "Out of Stock"
+                  ? "bg-muted text-muted-foreground"
                   : "bg-accent/10 text-accent"
               }`}
             >
-              {product.badge}
+              {badgeText}
             </span>
           )}
           {/* Wishlist toggle — dropped in compact mode, there's no room for it */}
@@ -542,7 +629,7 @@ function ProductCard({
                 id: product.id,
                 name: product.name,
                 description: product.tagline ?? product.description,
-                price: product.price,
+                price: applied ? applied.salePrice : product.price,
                 image: product.images[0],
               })
             }}
@@ -559,18 +646,18 @@ function ProductCard({
             <h3 className="font-serif text-sm sm:text-xl text-foreground mb-0.5 sm:mb-1 truncate">{product.name}</h3>
             <p className="hidden sm:block text-sm text-muted-foreground mb-4">{product.tagline ?? product.description}</p>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-sm sm:text-lg font-medium text-foreground">{formatPrice(product.price)}</span>
-              {product.mrp && (
-                <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                  {formatPrice(product.mrp)}
-                </span>
-              )}
+              <span className="text-sm sm:text-lg font-medium text-foreground">
+                {formatPrice(applied ? applied.salePrice : product.price)}
+              </span>
+              {applied ? (
+                <span className="text-xs sm:text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span>
+              ) : product.mrp ? (
+                <span className="text-xs sm:text-sm text-muted-foreground line-through">{formatPrice(product.mrp)}</span>
+              ) : null}
             </div>
-            {(likeCount > 0 || product.boughtCount) && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 flex items-center gap-1">
-                {product.boughtCount ? <span>Bought by {product.boughtCount}</span> : null}
-                {product.boughtCount && likeCount > 0 ? <span>·</span> : null}
-                {likeCount > 0 ? <span className="inline-flex items-center gap-0.5"><Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-primary text-primary" />{likeCount}</span> : null}
+            {boughtCount > 0 && (
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+                Bought by {boughtCount}
               </p>
             )}
           </div>

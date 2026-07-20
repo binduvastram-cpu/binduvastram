@@ -14,6 +14,7 @@ export const CATEGORY_FILTERS: Record<Category, FilterKind[]> = {
   petticoats: ["fabric", "size", "color", "price"],
   handbags: ["material", "color", "price"],
   jewellery: ["price"],
+  designer: ["fabric", "size", "color", "price"],
 }
 
 export function filtersForCategory(category: string): FilterKind[] {

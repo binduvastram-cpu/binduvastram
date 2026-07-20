@@ -75,7 +75,7 @@ export default function CartPage() {
     return (
       <main className="min-h-screen">
         <Header />
-        <div className="pt-28 pb-20">
+        <div className="pt-28 lg:pt-36 pb-20">
           <div className="max-w-xl mx-auto px-6 lg:px-8">
             <div className="bg-card rounded-3xl boty-shadow p-8 text-center">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6 mx-auto">
@@ -117,7 +117,7 @@ export default function CartPage() {
     <main className="min-h-screen">
       <Header />
 
-      <div className="pt-28 pb-20">
+      <div className="pt-28 lg:pt-36 pb-20">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h1 className="font-serif text-4xl md:text-5xl text-foreground mb-4 text-balance">Your Cart</h1>
           <p className="text-muted-foreground mb-12">

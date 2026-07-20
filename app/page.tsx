@@ -1,6 +1,7 @@
 import { Header } from "@/components/boty/header"
 import { Hero } from "@/components/boty/hero"
 import { ShopByPrice } from "@/components/boty/shop-by-price"
+import { OffersTicker } from "@/components/boty/offers-ticker"
 import { CategoryGrid } from "@/components/boty/category-grid"
 import { CategorySpotlight } from "@/components/boty/category-spotlight"
 import { TrustBadges } from "@/components/boty/trust-badges"
@@ -18,6 +19,7 @@ export default function HomePage() {
       <Header />
       <Hero />
       <ShopByPrice />
+      <OffersTicker />
       <ProductGrid />
       <CategorySpotlight />
       <CategoryGrid />

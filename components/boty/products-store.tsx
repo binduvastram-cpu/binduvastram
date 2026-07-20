@@ -11,7 +11,7 @@ const SEED_VERSION_KEY = "bindu-vastram-products-seed-version"
 // already visited once keeps reading its original localStorage snapshot
 // forever and never picks up seed edits — e.g. adding a `material` value to
 // the handbag products wouldn't show up for a returning visitor.
-const SEED_VERSION = "2"
+const SEED_VERSION = "4"
 
 interface ProductsContextType {
   products: Product[]
